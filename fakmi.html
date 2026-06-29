@@ -222,7 +222,7 @@
             }
         }
 
-        .bump {
+        .bump-once {
             animation: bumpCount .35s ease-out;
         }
 
@@ -268,7 +268,7 @@
         <!-- ===================== MAIN VIEW ===================== -->
         <div x-cloak x-show="!focusMode" x-transition.opacity.duration.200ms>
 
-            <!-- Quick capture lives ABOVE the grid for prominence on all screens -->
+            <!-- Quick capture -->
             <div class="mb-8">
                 <input x-ref="quickInput" type="text" x-model="input" @keydown="handleInputKey($event)"
                     placeholder="What's on your mind? (Ctrl+Space to focus)"
@@ -361,7 +361,7 @@
                     <!-- Routines list -->
                     <ul class="space-y-2">
                         <template x-for="routine in routines" :key="routine.id">
-                            <li class="fade-enter group rounded-2xl bg-zinc-900/60 border border-zinc-800/60 transition-all overflow-hidden"
+                            <li class="relative fade-enter group rounded-2xl bg-zinc-900/60 border border-zinc-800/60 transition-all overflow-hidden"
                                 :class="routine.count >= routine.target ? 'routine-done' : ''">
                                 <button @click="incrementRoutine(routine)"
                                     class="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-900 transition-colors">
@@ -377,10 +377,11 @@
                                                 :stroke-dashoffset="100.53 * (1 - Math.min(routine.count / routine.target, 1))"
                                                 class="timer-ring" />
                                         </svg>
-                                        <span class="relative bump-once"
+                                        <span class="relative"
+                                            :class="{ 'bump-once': lastBumpedRoutineId === routine.id }"
                                             x-text="routine.count + '/' + routine.target"></span>
                                     </div>
-                                    <div class="flex-1 min-w-0">
+                                    <div class="flex-1 min-w-0 pr-6">
                                         <p class="text-sm text-zinc-200 truncate routine-name" x-text="routine.name">
                                         </p>
                                         <div class="mt-1 h-1 rounded-full bg-zinc-800/80 overflow-hidden">
@@ -395,23 +396,25 @@
                                         Done
                                     </span>
                                 </button>
+
+                                <!-- Delete routine button -->
                                 <button @click.stop="removeRoutine(routine)"
-                                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all p-1"
+                                    class="absolute top-1/2 -translate-y-1/2 right-3 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 bg-zinc-900 rounded-md transition-all p-1.5"
                                     aria-label="Delete routine">
-                                    <!-- use wrapper trick for absolute positioning -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                 </button>
                             </li>
                         </template>
                     </ul>
-
-                    <!-- Wrap li as relative so delete button works -->
-                    <template x-if="false"></template>
                 </section>
 
                 <!-- CENTER: Active Tasks -->
                 <section class="order-1 lg:order-2 mt-0">
                     <!-- All-done celebration state -->
-                    <div x-show="tasks.length === 0 && completed.length > 0 && routines.length === 0"
+                    <div x-show="tasks.length === 0 && completed.length > 0 && incompleteRoutinesCount === 0"
                         class="text-center py-12">
                         <div
                             class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500/10 mb-4">
@@ -701,20 +704,27 @@
                 routineTarget: 3,
 
                 focusMode: false,
-                focusedItem: null, // { type:'task'|'routine', id, text, ...ref }
+                focusedItem: null,
 
                 combo: 1,
                 lastCompletionAt: 0,
 
+                // Transient UI state for animations & background tasks (not persisted)
+                lastBumpedRoutineId: null,
+                comboDecayInterval: null,
+
                 // Timer
                 defaultTimerMinutes: 15,
-                timerDuration: 15 * 60, // total seconds set by user
-                timerSeconds: 15 * 60,   // remaining seconds
+                timerDuration: 15 * 60,
+                timerSeconds: 15 * 60,
                 timerRunning: false,
                 timerFailed: false,
                 timerInterval: null,
 
-                todayStr() { return new Date().toISOString().slice(0, 10); },
+                todayStr() {
+                    const d = new Date();
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                },
 
                 boot() {
                     try {
@@ -731,7 +741,6 @@
                         if (savedCombo) this.combo = Math.max(1, parseInt(savedCombo, 10) || 1);
 
                         const savedLast = localStorage.getItem('focus.lastCompletionAt');
-                        // FIXED: Removed the extra closing parenthesis here
                         if (savedLast) this.lastCompletionAt = parseInt(savedLast, 10) || 0;
 
                         const savedDefaultMin = localStorage.getItem('focus.defaultTimerMinutes');
@@ -749,13 +758,25 @@
 
                         if (lastDate !== today) {
                             this.completed = [];
-                            // Reset routine counts on new day
                             this.routines = this.routines.map(r => ({ ...r, count: 0 }));
                             localStorage.setItem('focus.lastActiveDate', today);
                         }
 
                         this.checkComboDecay();
                         this.save();
+
+                        // Periodic combo decay check so it decays in real-time even if the app
+                        // is left open and idle for >30min (original only checked on boot/complete).
+                        if (this.comboDecayInterval) {
+                            clearInterval(this.comboDecayInterval);
+                        }
+                        this.comboDecayInterval = setInterval(() => {
+                            const oldCombo = this.combo;
+                            this.checkComboDecay();
+                            if (this.combo !== oldCombo) {
+                                this.save();
+                            }
+                        }, 60 * 1000); // every minute is sufficient and cheap
                     } catch (e) {
                         this.tasks = [];
                         this.completed = [];
@@ -799,12 +820,10 @@
                     return 'combo-t1';
                 },
 
-                // ============ POOL (tasks + incomplete routines) ============
                 get incompleteRoutines() {
                     return this.routines.filter(r => r.count < r.target);
                 },
                 get incompleteRoutinesCount() {
-                    // Weighted count: total reps remaining across routines
                     return this.routines.reduce((sum, r) => sum + Math.max(0, r.target - r.count), 0);
                 },
                 get focusablePool() {
@@ -815,7 +834,6 @@
                     return items;
                 },
 
-                // ============ TASKS ============
                 addTask() {
                     const text = this.input.trim();
                     if (!text) return;
@@ -871,7 +889,6 @@
                     }
                 },
 
-                // ============ ROUTINES ============
                 addRoutine() {
                     const name = this.routineInput.trim();
                     const target = Math.max(1, Math.min(99, parseInt(this.routineTarget, 10) || 1));
@@ -883,17 +900,24 @@
                         count: 0
                     });
                     this.routineInput = '';
-                    this.routineTarget = target;
                     this.save();
                 },
 
                 removeRoutine(routine) {
                     this.routines = this.routines.filter(r => r.id !== routine.id);
+                    // If the currently focused item was this routine, exit focus mode
+                    if (this.focusedItem && this.focusedItem.type === 'routine' && this.focusedItem.id === routine.id) {
+                        if (this.focusablePool.length > 0) {
+                            this.$nextTick(() => this.pickFocus());
+                        } else {
+                            this.exitFocus();
+                        }
+                    }
                     this.save();
                 },
 
                 incrementRoutine(routine) {
-                    if (routine.count >= routine.target) return; // already done today
+                    if (routine.count >= routine.target) return;
 
                     const snapshot = {
                         kind: 'routine',
@@ -905,12 +929,21 @@
 
                     routine.count += 1;
 
+                    // Trigger bump animation on this routine's count (replays CSS scale anim reliably)
+                    this.lastBumpedRoutineId = routine.id;
+                    this.$nextTick(() => {
+                        setTimeout(() => {
+                            if (this.lastBumpedRoutineId === routine.id) {
+                                this.lastBumpedRoutineId = null;
+                            }
+                        }, 350);
+                    });
+
                     this.checkComboDecay();
                     this.combo = Math.min(99, this.combo + 1);
                     this.lastCompletionAt = Date.now();
 
                     if (routine.count >= routine.target) {
-                        // Celebrate finishing the routine for the day
                         this.celebrate();
                     }
 
@@ -918,7 +951,6 @@
                     window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
                 },
 
-                // ============ FOCUS ============
                 pickFocus() {
                     const pool = this.focusablePool;
                     if (pool.length === 0) {
@@ -953,7 +985,6 @@
 
                     this.stopTimer();
 
-                    // Pick next if pool still has items
                     if (this.focusablePool.length > 0) {
                         this.$nextTick(() => this.pickFocus());
                     } else {
@@ -966,7 +997,6 @@
                     this.save();
                 },
 
-                // ============ TIMER ============
                 get timerDisplay() {
                     const total = Math.max(0, this.timerSeconds);
                     const m = Math.floor(total / 60);
@@ -996,7 +1026,6 @@
                 startTimer() {
                     if (this.timerInterval) return;
                     if (this.timerSeconds <= 0) {
-                        // reset to default if at 0
                         this.timerSeconds = this.defaultTimerMinutes * 60;
                         this.timerDuration = this.defaultTimerMinutes * 60;
                         this.timerFailed = false;
@@ -1028,7 +1057,6 @@
                     else this.startTimer();
                 },
 
-                // ============ KEY HANDLERS ============
                 handleInputKey(event) {
                     if (event.key === 'Enter') {
                         if (event.shiftKey) {
@@ -1041,7 +1069,6 @@
                 },
 
                 handleGlobalKey(event) {
-                    // Ctrl+Space focus input
                     if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
                         if (this.focusMode) return;
                         event.preventDefault();
@@ -1067,7 +1094,6 @@
                             this.exitFocus();
                             return;
                         }
-                        // Space starts/pauses timer
                         if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
                             const tag = (event.target && event.target.tagName) || '';
                             if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON') {

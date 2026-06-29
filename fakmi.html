@@ -16,7 +16,9 @@
             background: #0a0a0b;
         }
 
-        [x-cloak] { display: none !important; }
+        [x-cloak] {
+            display: none !important;
+        }
 
         ::selection {
             background: #6366f1;
@@ -60,6 +62,17 @@
 
         input:focus {
             outline: none;
+        }
+
+        /* Remove spinner arrows from number input */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
         }
 
         ::-webkit-scrollbar {
@@ -148,16 +161,91 @@
             color: #fbbf24;
             animation: comboPulse 1.6s ease-in-out infinite;
         }
+
+        /* Timer styles */
+        .timer-text {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.04em;
+        }
+
+        .timer-failed {
+            color: #f87171 !important;
+            filter: drop-shadow(0 0 14px rgba(248, 113, 113, 0.45));
+            animation: timerPulseRed 1.4s ease-in-out infinite;
+        }
+
+        @keyframes timerPulseRed {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.4));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 22px rgba(248, 113, 113, 0.75));
+            }
+        }
+
+        .timer-ring {
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        /* Routine progress bar */
+        .routine-bar {
+            transition: width 400ms cubic-bezier(.2, .9, .3, 1.2);
+        }
+
+        .routine-done {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
+            border-color: rgba(99, 102, 241, 0.35) !important;
+        }
+
+        .routine-done .routine-name {
+            color: rgb(161 161 170);
+            text-decoration: line-through;
+            text-decoration-color: rgba(113, 113, 122, 0.4);
+        }
+
+        /* Bump animation for count */
+        @keyframes bumpCount {
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.25);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .bump {
+            animation: bumpCount .35s ease-out;
+        }
+
+        /* Hide number input spinner */
+        .num-clean::-webkit-outer-spin-button,
+        .num-clean::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .num-clean {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 
 <body class="min-h-screen text-zinc-100 antialiased">
 
-    <div x-data="dashboard()" x-init="boot()" @keydown.window="handleGlobalKey($event)" @undo-task.window="undoTask($event.detail)"
-        class="max-w-3xl mx-auto px-6 py-12 md:py-20">
+    <div x-data="dashboard()" x-init="boot()" @keydown.window="handleGlobalKey($event)"
+        @undo-task.window="undoTask($event.detail)" class="max-w-6xl mx-auto px-6 py-10 md:py-16">
 
         <!-- Header -->
-        <header class="flex items-center justify-between mb-12">
+        <header class="flex items-center justify-between mb-10">
             <div class="flex items-center gap-3">
                 <div class="w-3 h-3 rounded-full bg-indigo-500 pulse-glow"></div>
                 <h1 class="text-lg font-semibold tracking-tight text-zinc-300">focus</h1>
@@ -171,17 +259,17 @@
                         x-text="'x' + combo"></span>
                 </div>
                 <div class="text-zinc-500">
-                    <span x-text="tasks.length"></span>
-                    <span x-text="tasks.length === 1 ? 'open task' : 'open tasks'"></span>
+                    <span x-text="tasks.length + incompleteRoutinesCount"></span>
+                    <span x-text="(tasks.length + incompleteRoutinesCount) === 1 ? 'open item' : 'open items'"></span>
                 </div>
             </div>
         </header>
 
-        <!-- MAIN VIEW -->
+        <!-- ===================== MAIN VIEW ===================== -->
         <div x-cloak x-show="!focusMode" x-transition.opacity.duration.200ms>
 
-            <!-- Quick Capture -->
-            <div class="mb-4">
+            <!-- Quick capture lives ABOVE the grid for prominence on all screens -->
+            <div class="mb-8">
                 <input x-ref="quickInput" type="text" x-model="input" @keydown="handleInputKey($event)"
                     placeholder="What's on your mind? (Ctrl+Space to focus)"
                     class="w-full text-3xl md:text-5xl font-light tracking-tight bg-transparent placeholder-zinc-700 text-zinc-100 border-b-2 border-zinc-800 focus:border-indigo-500 transition-colors pb-4" />
@@ -198,7 +286,7 @@
             </div>
 
             <!-- Focus Button -->
-            <div class="mt-10 mb-8" x-show="tasks.length > 0">
+            <div class="mb-10" x-show="focusablePool.length > 0">
                 <button @click="pickFocus()"
                     class="group w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 transition-all text-white font-medium text-base tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/30">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
@@ -206,8 +294,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     Tell Me What To Do
+                    <span x-show="focusablePool.length > 0" class="text-xs opacity-70 ml-1 font-mono"
+                        x-text="'(' + focusablePool.length + ')'"></span>
                 </button>
                 <p class="text-center text-[11px] text-zinc-600 mt-2 tracking-wide">
+                    pools
+                    <span class="text-zinc-500" x-text="tasks.length"></span> tasks +
+                    <span class="text-zinc-500" x-text="incompleteRoutinesCount"></span> routines ·
                     or press
                     <kbd
                         class="px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 font-mono text-[10px] mx-0.5">Shift</kbd>
@@ -218,134 +311,317 @@
             </div>
 
             <!-- Empty state -->
-            <div x-show="tasks.length === 0 && completed.length === 0" class="text-center py-16">
+            <div x-show="tasks.length === 0 && completed.length === 0 && routines.length === 0"
+                class="text-center py-12">
                 <p class="text-zinc-600 text-sm">Your brain is clear. Add something to remember.</p>
             </div>
 
-            <!-- All-done celebration state -->
-            <div x-show="tasks.length === 0 && completed.length > 0" class="text-center py-12">
-                <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500/10 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-indigo-400" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-                <p class="text-zinc-300 text-lg font-medium">All done. Brain empty. Nice work.</p>
-                <p class="text-zinc-600 text-xs mt-2">Scroll down to see what you crushed today.</p>
-            </div>
+            <!-- ============ 3-COLUMN GRID ============ -->
+            <div class="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
 
-            <!-- Active Task List -->
-            <ul class="space-y-2" x-show="tasks.length > 0">
-                <template x-for="task in tasks" :key="task.id">
-                    <li
-                        class="fade-enter group flex items-center gap-4 px-5 py-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/60 transition-all">
-                        <button @click="completeTask(task)"
-                            class="flex-shrink-0 w-6 h-6 rounded-full border-2 border-zinc-700 hover:border-indigo-500 hover:bg-indigo-500 transition-all flex items-center justify-center"
-                            aria-label="Mark done">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                class="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </button>
-                        <span class="flex-1 text-zinc-200 text-base md:text-lg break-words" x-text="task.text"></span>
-                        <button @click="removeTask(task)"
-                            class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all p-1"
-                            aria-label="Delete">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </li>
-                </template>
-            </ul>
-
-            <!-- COMPLETED TODAY SECTION -->
-            <div x-show="completed.length > 0" class="mt-14">
-                <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                        <div class="h-px w-8 bg-zinc-800"></div>
-                        <h2 class="text-xs uppercase tracking-[0.25em] text-zinc-500 font-medium">
-                            Completed Today
-                            <span class="ml-1 text-zinc-600" x-text="completed.length"></span>
-                        </h2>
-                        <div class="flex items-center gap-1.5 ml-2 pl-2 border-l border-zinc-800">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" :class="comboTierClass"
-                                fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="font-mono font-bold text-sm tracking-tight transition-all duration-300"
-                                :class="comboTierClass" x-text="'x' + combo"></span>
+                <!-- LEFT: Daily Routines -->
+                <section class="order-2 lg:order-1 mt-10 lg:mt-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-px w-6 bg-zinc-800"></div>
+                            <h2 class="text-xs uppercase tracking-[0.25em] text-zinc-500 font-medium">
+                                Daily Routines
+                                <span class="ml-1 text-zinc-600" x-text="routines.length"></span>
+                            </h2>
                         </div>
                     </div>
-                    <button @click="clearCompleted()"
-                        class="text-xs text-zinc-600 hover:text-zinc-300 transition-colors tracking-wide flex items-center gap-1.5 group/btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
-                        </svg>
-                        <span class="group-hover/btn:underline underline-offset-4">Clear Completed</span>
-                    </button>
-                </div>
 
-                <ul class="space-y-1.5">
-                    <template x-for="task in completed" :key="task.id">
-                        <li
-                            class="fade-enter flex items-center gap-4 px-5 py-3 rounded-xl bg-zinc-900/20 border border-zinc-900/40">
-                            <div
-                                class="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800/60 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-indigo-500/70" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    <!-- Add routine form -->
+                    <form @submit.prevent="addRoutine()"
+                        class="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60">
+                        <input type="text" x-model="routineInput" placeholder="e.g. Drink water"
+                            class="flex-1 min-w-0 bg-transparent text-sm text-zinc-200 placeholder-zinc-600" />
+                        <div class="flex items-center gap-1 text-zinc-500 text-xs">
+                            <span class="text-zinc-600">/</span>
+                            <input type="number" min="1" max="99" x-model.number="routineTarget"
+                                class="w-8 bg-zinc-800/70 text-center text-zinc-200 rounded px-1 py-0.5 text-xs font-mono num-clean border border-zinc-700/50 focus:border-indigo-500" />
+                            <span class="text-[10px] text-zinc-600">×/day</span>
+                        </div>
+                        <button type="submit"
+                            class="flex-shrink-0 w-6 h-6 rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 flex items-center justify-center transition-colors"
+                            aria-label="Add routine">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                    </form>
+
+                    <!-- Empty routines -->
+                    <div x-show="routines.length === 0"
+                        class="text-center py-8 rounded-2xl border border-dashed border-zinc-800/80">
+                        <p class="text-zinc-600 text-xs">No routines yet. Build small daily habits.</p>
+                    </div>
+
+                    <!-- Routines list -->
+                    <ul class="space-y-2">
+                        <template x-for="routine in routines" :key="routine.id">
+                            <li class="fade-enter group rounded-2xl bg-zinc-900/60 border border-zinc-800/60 transition-all overflow-hidden"
+                                :class="routine.count >= routine.target ? 'routine-done' : ''">
+                                <button @click="incrementRoutine(routine)"
+                                    class="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-900 transition-colors">
+                                    <!-- Progress circle / count -->
+                                    <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold relative"
+                                        :class="routine.count >= routine.target ? 'bg-indigo-500/20 text-indigo-300' : 'bg-zinc-800 text-zinc-300'">
+                                        <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                            <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(63,63,70,0.6)"
+                                                stroke-width="2" />
+                                            <circle cx="18" cy="18" r="16" fill="none"
+                                                :stroke="routine.count >= routine.target ? '#818cf8' : '#6366f1'"
+                                                stroke-width="2.5" stroke-linecap="round" :stroke-dasharray="100.53"
+                                                :stroke-dashoffset="100.53 * (1 - Math.min(routine.count / routine.target, 1))"
+                                                class="timer-ring" />
+                                        </svg>
+                                        <span class="relative bump-once"
+                                            x-text="routine.count + '/' + routine.target"></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm text-zinc-200 truncate routine-name" x-text="routine.name">
+                                        </p>
+                                        <div class="mt-1 h-1 rounded-full bg-zinc-800/80 overflow-hidden">
+                                            <div class="h-full routine-bar rounded-full"
+                                                :class="routine.count >= routine.target ? 'bg-gradient-to-r from-indigo-500 to-violet-500' : 'bg-indigo-500/70'"
+                                                :style="'width:' + Math.min((routine.count / routine.target) * 100, 100) + '%'">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span x-show="routine.count >= routine.target"
+                                        class="flex-shrink-0 text-[10px] uppercase tracking-wider text-indigo-300 font-semibold">
+                                        Done
+                                    </span>
+                                </button>
+                                <button @click.stop="removeRoutine(routine)"
+                                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all p-1"
+                                    aria-label="Delete routine">
+                                    <!-- use wrapper trick for absolute positioning -->
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+
+                    <!-- Wrap li as relative so delete button works -->
+                    <template x-if="false"></template>
+                </section>
+
+                <!-- CENTER: Active Tasks -->
+                <section class="order-1 lg:order-2 mt-0">
+                    <!-- All-done celebration state -->
+                    <div x-show="tasks.length === 0 && completed.length > 0 && routines.length === 0"
+                        class="text-center py-12">
+                        <div
+                            class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500/10 mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-indigo-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <p class="text-zinc-300 text-lg font-medium">All done. Brain empty. Nice work.</p>
+                        <p class="text-zinc-600 text-xs mt-2">Scroll down to see what you crushed today.</p>
+                    </div>
+
+                    <!-- Active Task List -->
+                    <div x-show="tasks.length > 0">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="h-px w-6 bg-zinc-800"></div>
+                            <h2 class="text-xs uppercase tracking-[0.25em] text-zinc-500 font-medium">
+                                Active Tasks
+                                <span class="ml-1 text-zinc-600" x-text="tasks.length"></span>
+                            </h2>
+                        </div>
+                        <ul class="space-y-2">
+                            <template x-for="task in tasks" :key="task.id">
+                                <li
+                                    class="fade-enter group flex items-center gap-4 px-5 py-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/60 transition-all relative">
+                                    <button @click="completeTask(task)"
+                                        class="flex-shrink-0 w-6 h-6 rounded-full border-2 border-zinc-700 hover:border-indigo-500 hover:bg-indigo-500 transition-all flex items-center justify-center"
+                                        aria-label="Mark done">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            class="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                    <span class="flex-1 text-zinc-200 text-base break-words" x-text="task.text"></span>
+                                    <button @click="removeTask(task)"
+                                        class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all p-1"
+                                        aria-label="Delete">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+
+                    <div x-show="tasks.length === 0 && (routines.length > 0 || completed.length > 0)"
+                        class="text-center py-10">
+                        <p class="text-zinc-600 text-xs">No active tasks.</p>
+                    </div>
+                </section>
+
+                <!-- RIGHT: Completed Today -->
+                <section class="order-3 mt-10 lg:mt-0" x-show="completed.length > 0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-px w-6 bg-zinc-800"></div>
+                            <h2 class="text-xs uppercase tracking-[0.25em] text-zinc-500 font-medium">
+                                Completed Today
+                                <span class="ml-1 text-zinc-600" x-text="completed.length"></span>
+                            </h2>
+                            <div class="flex items-center gap-1.5 ml-2 pl-2 border-l border-zinc-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" :class="comboTierClass"
+                                    fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z"
+                                        clip-rule="evenodd" />
                                 </svg>
+                                <span class="font-mono font-bold text-sm tracking-tight transition-all duration-300"
+                                    :class="comboTierClass" x-text="'x' + combo"></span>
                             </div>
-                            <span class="flex-1 text-zinc-500 text-base strike-text break-words" x-text="task.text"></span>
-                        </li>
-                    </template>
-                </ul>
-            </div>
+                        </div>
+                        <button @click="clearCompleted()"
+                            class="text-xs text-zinc-600 hover:text-zinc-300 transition-colors tracking-wide flex items-center gap-1.5 group/btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" />
+                            </svg>
+                            <span class="group-hover/btn:underline underline-offset-4">Clear</span>
+                        </button>
+                    </div>
 
+                    <ul class="space-y-1.5">
+                        <template x-for="task in completed" :key="task.id">
+                            <li
+                                class="fade-enter flex items-center gap-4 px-5 py-3 rounded-xl bg-zinc-900/20 border border-zinc-900/40">
+                                <div
+                                    class="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800/60 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-indigo-500/70"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <span class="flex-1 text-zinc-500 text-sm strike-text break-words"
+                                    x-text="task.text"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </section>
+            </div>
         </div>
 
-        <!-- FOCUS MODE -->
+        <!-- ===================== FOCUS MODE ===================== -->
         <div x-cloak x-show="focusMode" x-transition.opacity.duration.300ms
-            class="min-h-[60vh] flex flex-col items-center justify-center text-center">
+            class="min-h-[70vh] flex flex-col items-center justify-center text-center px-2">
 
-            <p class="text-xs uppercase tracking-[0.3em] text-indigo-400 mb-8">Do this. Just this.</p>
+            <p class="text-xs uppercase tracking-[0.3em] text-indigo-400 mb-6">Do this. Just this.</p>
+
+            <!-- Type badge -->
+            <div x-show="focusedItem" class="mb-4 flex items-center justify-center">
+                <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] uppercase tracking-wider font-semibold"
+                    :class="focusedItem?.type === 'routine' ? 'text-violet-300 border-violet-800/50' : 'text-zinc-500'">
+                    <span class="w-1.5 h-1.5 rounded-full"
+                        :class="focusedItem?.type === 'routine' ? 'bg-violet-400' : 'bg-zinc-600'"></span>
+                    <span x-text="focusedItem?.type === 'routine' ? 'Routine · click increments count' : 'Task'"></span>
+                </span>
+            </div>
 
             <h2 class="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-zinc-100 leading-tight max-w-4xl break-words"
-                x-text="focusedTask?.text"></h2>
+                x-text="focusedItem?.text"></h2>
 
-            <p x-show="combo >= 2" class="mt-8 font-mono text-sm tracking-wider" :class="comboTierClass">
+            <p x-show="combo >= 2" class="mt-6 font-mono text-sm tracking-wider" :class="comboTierClass">
                 <span x-text="'Combo x' + combo"></span>
                 <span class="text-zinc-600 ml-2">· keep it going</span>
             </p>
 
-            <div class="mt-16 flex flex-col sm:flex-row gap-3">
+            <!-- SPEEDRUN TIMER -->
+            <div class="mt-10 flex flex-col items-center">
+                <div class="relative w-52 h-52 flex items-center justify-center">
+                    <!-- Background ring -->
+                    <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 200 200">
+                        <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(63,63,70,0.5)" stroke-width="3" />
+                        <circle cx="100" cy="100" r="92" fill="none"
+                            :stroke="timerFailed ? '#f87171' : (timerRunning ? '#818cf8' : '#52525b')" stroke-width="4"
+                            stroke-linecap="round" :stroke-dasharray="578.05"
+                            :stroke-dashoffset="578.05 * (1 - timerFraction)" class="timer-ring"
+                            :style="timerRunning ? '' : 'transition: stroke-dashoffset 200ms ease'" />
+                    </svg>
+                    <!-- Timer digits -->
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div class="timer-text text-6xl font-semibold tracking-tight"
+                            :class="timerFailed ? 'timer-failed' : 'text-zinc-100'" x-text="timerDisplay"></div>
+                        <div class="text-[10px] uppercase tracking-[0.25em] mt-2"
+                            :class="timerFailed ? 'text-red-400' : (timerRunning ? 'text-indigo-400' : 'text-zinc-600')">
+                            <span x-show="timerFailed">Speedrun failed</span>
+                            <span x-show="!timerFailed && timerRunning">Running</span>
+                            <span x-show="!timerFailed && !timerRunning && timerSeconds > 0">Ready</span>
+                            <span x-show="!timerFailed && !timerRunning && timerSeconds === 0">Idle</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timer controls -->
+                <div class="mt-6 flex items-center gap-2">
+                    <button @click="adjustTimer(-5)" :disabled="timerRunning"
+                        class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        −5m
+                    </button>
+                    <button @click="toggleTimer()"
+                        class="px-5 py-1.5 rounded-lg text-xs font-medium tracking-wide transition-colors"
+                        :class="timerRunning ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700' : 'bg-indigo-600 text-white hover:bg-indigo-500'">
+                        <span x-show="!timerRunning && timerSeconds > 0"
+                            x-text="timerSeconds === timerDuration ? 'Start Timer' : 'Resume'"></span>
+                        <span x-show="timerRunning">Pause</span>
+                        <span x-show="!timerRunning && timerSeconds === 0 && !timerFailed">Start</span>
+                    </button>
+                    <button @click="adjustTimer(5)" :disabled="timerRunning"
+                        class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                        +5m
+                    </button>
+                    <button @click="resetTimer()"
+                        class="ml-1 px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 text-xs font-mono transition-colors"
+                        title="Reset">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.85-3.36L20 7M20 15a9 9 0 01-14.85 3.36L4 17" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-[10px] text-zinc-600 mt-2 font-mono">
+                    Default <span x-text="defaultTimerMinutes + 'm'"></span> · adjust before start
+                </p>
+            </div>
+
+            <div class="mt-10 flex flex-col sm:flex-row gap-3">
                 <button @click="completeFocused()"
                     class="px-8 py-3 rounded-full bg-indigo-600 hover:bg-indigo-500 transition-colors text-white font-medium text-sm tracking-wide">
-                    Mark as Done
+                    <span x-text="focusedItem?.type === 'routine' ? 'Complete One Rep' : 'Mark as Done'"></span>
                 </button>
 
-                <template x-if="tasks.length > 1">
+                <template x-if="focusablePool.length > 1">
                     <button @click="pickFocus()"
                         class="px-8 py-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-200 font-medium text-sm tracking-wide">
                         Pick Another
                     </button>
                 </template>
 
-                <!-- FIX: Removed the x-if template wrapper so this button is always visible to exit -->
                 <button @click="exitFocus()"
                     class="px-8 py-3 rounded-full border border-zinc-800 hover:border-zinc-700 transition-colors text-zinc-400 font-medium text-sm tracking-wide">
                     Back to List
                 </button>
             </div>
 
-            <p x-show="tasks.length === 1" class="mt-6 text-xs text-zinc-600">
+            <p x-show="focusablePool.length === 1" class="mt-6 text-xs text-zinc-600">
                 Last one. Finish it and you're free.
             </p>
         </div>
@@ -362,7 +638,8 @@
             </svg>
         </div>
         <div class="flex-1 min-w-0">
-            <p class="text-sm text-zinc-200 font-medium">Task completed.</p>
+            <p class="text-sm text-zinc-200 font-medium"
+                x-text="pending?.kind === 'routine' ? 'Rep counted.' : 'Task completed.'"></p>
             <p class="text-xs text-zinc-500 truncate" x-text="pending?.text"></p>
         </div>
         <button @click="undo()"
@@ -380,9 +657,7 @@
                 exitTimer: null,
 
                 init() {
-                    window.addEventListener('show-undo-toast', (e) => {
-                        this.show(e.detail);
-                    });
+                    window.addEventListener('show-undo-toast', (e) => { this.show(e.detail); });
                 },
 
                 show(detail) {
@@ -390,7 +665,6 @@
                     this.exiting = false;
                     this.pending = detail;
                     this.visible = true;
-
                     this.exitTimer = setTimeout(() => this.dismiss(), 5000);
                 },
 
@@ -420,16 +694,27 @@
             return {
                 tasks: [],
                 completed: [],
+                routines: [],
+
                 input: '',
+                routineInput: '',
+                routineTarget: 3,
+
                 focusMode: false,
-                focusedTask: null,
+                focusedItem: null, // { type:'task'|'routine', id, text, ...ref }
 
                 combo: 1,
                 lastCompletionAt: 0,
 
-                todayStr() {
-                    return new Date().toISOString().slice(0, 10);
-                },
+                // Timer
+                defaultTimerMinutes: 15,
+                timerDuration: 15 * 60, // total seconds set by user
+                timerSeconds: 15 * 60,   // remaining seconds
+                timerRunning: false,
+                timerFailed: false,
+                timerInterval: null,
+
+                todayStr() { return new Date().toISOString().slice(0, 10); },
 
                 boot() {
                     try {
@@ -439,17 +724,33 @@
                         const savedCompleted = localStorage.getItem('focus.completed');
                         if (savedCompleted) this.completed = JSON.parse(savedCompleted);
 
+                        const savedRoutines = localStorage.getItem('focus.routines');
+                        if (savedRoutines) this.routines = JSON.parse(savedRoutines);
+
                         const savedCombo = localStorage.getItem('focus.combo');
                         if (savedCombo) this.combo = Math.max(1, parseInt(savedCombo, 10) || 1);
 
                         const savedLast = localStorage.getItem('focus.lastCompletionAt');
+                        // FIXED: Removed the extra closing parenthesis here
                         if (savedLast) this.lastCompletionAt = parseInt(savedLast, 10) || 0;
+
+                        const savedDefaultMin = localStorage.getItem('focus.defaultTimerMinutes');
+                        if (savedDefaultMin) {
+                            const m = parseInt(savedDefaultMin, 10);
+                            if (m > 0) {
+                                this.defaultTimerMinutes = m;
+                                this.timerDuration = m * 60;
+                                this.timerSeconds = m * 60;
+                            }
+                        }
 
                         const lastDate = localStorage.getItem('focus.lastActiveDate');
                         const today = this.todayStr();
 
                         if (lastDate !== today) {
                             this.completed = [];
+                            // Reset routine counts on new day
+                            this.routines = this.routines.map(r => ({ ...r, count: 0 }));
                             localStorage.setItem('focus.lastActiveDate', today);
                         }
 
@@ -458,12 +759,17 @@
                     } catch (e) {
                         this.tasks = [];
                         this.completed = [];
+                        this.routines = [];
                     }
 
-                    this.$watch('tasks', (newVal) => {
-                        if (this.focusMode && newVal.length === 0) {
-                            this.focusMode = false;
-                            this.focusedTask = null;
+                    this.$watch('tasks', () => {
+                        if (this.focusMode && this.focusablePool.length === 0) {
+                            this.exitFocus();
+                        }
+                    });
+                    this.$watch('routines', () => {
+                        if (this.focusMode && this.focusablePool.length === 0) {
+                            this.exitFocus();
                         }
                     });
                 },
@@ -471,9 +777,11 @@
                 save() {
                     localStorage.setItem('focus.tasks', JSON.stringify(this.tasks));
                     localStorage.setItem('focus.completed', JSON.stringify(this.completed));
+                    localStorage.setItem('focus.routines', JSON.stringify(this.routines));
                     localStorage.setItem('focus.lastActiveDate', this.todayStr());
                     localStorage.setItem('focus.combo', String(this.combo));
                     localStorage.setItem('focus.lastCompletionAt', String(this.lastCompletionAt));
+                    localStorage.setItem('focus.defaultTimerMinutes', String(this.defaultTimerMinutes));
                 },
 
                 checkComboDecay() {
@@ -491,6 +799,23 @@
                     return 'combo-t1';
                 },
 
+                // ============ POOL (tasks + incomplete routines) ============
+                get incompleteRoutines() {
+                    return this.routines.filter(r => r.count < r.target);
+                },
+                get incompleteRoutinesCount() {
+                    // Weighted count: total reps remaining across routines
+                    return this.routines.reduce((sum, r) => sum + Math.max(0, r.target - r.count), 0);
+                },
+                get focusablePool() {
+                    const items = this.tasks.map(t => ({ type: 'task', id: t.id, text: t.text, ref: t }));
+                    this.incompleteRoutines.forEach(r => {
+                        items.push({ type: 'routine', id: r.id, text: r.name, ref: r });
+                    });
+                    return items;
+                },
+
+                // ============ TASKS ============
                 addTask() {
                     const text = this.input.trim();
                     if (!text) return;
@@ -516,9 +841,8 @@
 
                 completeTask(task) {
                     this.checkComboDecay();
-
                     this.celebrate();
-                    const snapshot = { id: task.id, text: task.text, previousCombo: this.combo };
+                    const snapshot = { kind: 'task', id: task.id, text: task.text, previousCombo: this.combo };
                     this.moveToCompleted(task);
 
                     this.combo = Math.min(99, this.combo + 1);
@@ -529,6 +853,15 @@
                 },
 
                 undoTask(snapshot) {
+                    if (snapshot.kind === 'routine') {
+                        const r = this.routines.find(x => x.id === snapshot.id);
+                        if (r) {
+                            r.count = Math.max(0, snapshot.previousCount);
+                            this.combo = Math.max(1, snapshot.previousCombo);
+                            this.save();
+                        }
+                        return;
+                    }
                     const idx = this.completed.findIndex(c => c.id === snapshot.id);
                     if (idx !== -1) {
                         const restored = this.completed.splice(idx, 1)[0];
@@ -538,32 +871,91 @@
                     }
                 },
 
+                // ============ ROUTINES ============
+                addRoutine() {
+                    const name = this.routineInput.trim();
+                    const target = Math.max(1, Math.min(99, parseInt(this.routineTarget, 10) || 1));
+                    if (!name) return;
+                    this.routines.push({
+                        id: Date.now() + Math.random(),
+                        name,
+                        target,
+                        count: 0
+                    });
+                    this.routineInput = '';
+                    this.routineTarget = target;
+                    this.save();
+                },
+
+                removeRoutine(routine) {
+                    this.routines = this.routines.filter(r => r.id !== routine.id);
+                    this.save();
+                },
+
+                incrementRoutine(routine) {
+                    if (routine.count >= routine.target) return; // already done today
+
+                    const snapshot = {
+                        kind: 'routine',
+                        id: routine.id,
+                        text: `${routine.name} · ${routine.count + 1}/${routine.target}`,
+                        previousCount: routine.count,
+                        previousCombo: this.combo
+                    };
+
+                    routine.count += 1;
+
+                    this.checkComboDecay();
+                    this.combo = Math.min(99, this.combo + 1);
+                    this.lastCompletionAt = Date.now();
+
+                    if (routine.count >= routine.target) {
+                        // Celebrate finishing the routine for the day
+                        this.celebrate();
+                    }
+
+                    this.save();
+                    window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
+                },
+
+                // ============ FOCUS ============
                 pickFocus() {
-                    if (this.tasks.length === 0) {
-                        this.focusMode = false;
-                        this.focusedTask = null;
+                    const pool = this.focusablePool;
+                    if (pool.length === 0) {
+                        this.exitFocus();
                         return;
                     }
-                    const idx = Math.floor(Math.random() * this.tasks.length);
-                    this.focusedTask = this.tasks[idx];
+                    const idx = Math.floor(Math.random() * pool.length);
+                    this.focusedItem = pool[idx];
                     this.focusMode = true;
+                    this.resetTimer();
                 },
 
                 exitFocus() {
                     this.focusMode = false;
-                    this.focusedTask = null;
+                    this.focusedItem = null;
+                    this.stopTimer();
                 },
 
-                // FIX: Process completion synchronously so Alpine can render in one frame,
-                // preventing the freeze/softlock when marking tasks done.
                 completeFocused() {
-                    if (!this.focusedTask) return;
-                    const doneTask = this.focusedTask;
+                    if (!this.focusedItem) return;
+                    const item = this.focusedItem;
 
-                    this.completeTask(doneTask);
+                    if (item.type === 'task') {
+                        const task = this.tasks.find(t => t.id === item.id);
+                        if (!task) { this.exitFocus(); return; }
+                        this.completeTask(task);
+                    } else if (item.type === 'routine') {
+                        const routine = this.routines.find(r => r.id === item.id);
+                        if (!routine) { this.exitFocus(); return; }
+                        this.incrementRoutine(routine);
+                    }
 
-                    if (this.tasks.length > 0) {
-                        this.pickFocus();
+                    this.stopTimer();
+
+                    // Pick next if pool still has items
+                    if (this.focusablePool.length > 0) {
+                        this.$nextTick(() => this.pickFocus());
                     } else {
                         this.exitFocus();
                     }
@@ -574,6 +966,69 @@
                     this.save();
                 },
 
+                // ============ TIMER ============
+                get timerDisplay() {
+                    const total = Math.max(0, this.timerSeconds);
+                    const m = Math.floor(total / 60);
+                    const s = total % 60;
+                    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                },
+                get timerFraction() {
+                    if (this.timerDuration <= 0) return 0;
+                    return Math.max(0, Math.min(1, this.timerSeconds / this.timerDuration));
+                },
+
+                adjustTimer(deltaMin) {
+                    if (this.timerRunning) return;
+                    const newSec = Math.max(60, this.timerSeconds + deltaMin * 60);
+                    this.timerSeconds = newSec;
+                    this.timerDuration = newSec;
+                    this.timerFailed = false;
+                },
+
+                resetTimer() {
+                    this.stopTimer();
+                    this.timerSeconds = this.defaultTimerMinutes * 60;
+                    this.timerDuration = this.defaultTimerMinutes * 60;
+                    this.timerFailed = false;
+                },
+
+                startTimer() {
+                    if (this.timerInterval) return;
+                    if (this.timerSeconds <= 0) {
+                        // reset to default if at 0
+                        this.timerSeconds = this.defaultTimerMinutes * 60;
+                        this.timerDuration = this.defaultTimerMinutes * 60;
+                        this.timerFailed = false;
+                    }
+                    this.timerRunning = true;
+                    this.timerInterval = setInterval(() => {
+                        if (this.timerSeconds > 0) {
+                            this.timerSeconds -= 1;
+                            if (this.timerSeconds === 0) {
+                                this.timerFailed = true;
+                                this.stopTimer();
+                            }
+                        } else {
+                            this.stopTimer();
+                        }
+                    }, 1000);
+                },
+
+                stopTimer() {
+                    if (this.timerInterval) {
+                        clearInterval(this.timerInterval);
+                        this.timerInterval = null;
+                    }
+                    this.timerRunning = false;
+                },
+
+                toggleTimer() {
+                    if (this.timerRunning) this.stopTimer();
+                    else this.startTimer();
+                },
+
+                // ============ KEY HANDLERS ============
                 handleInputKey(event) {
                     if (event.key === 'Enter') {
                         if (event.shiftKey) {
@@ -586,7 +1041,9 @@
                 },
 
                 handleGlobalKey(event) {
+                    // Ctrl+Space focus input
                     if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
+                        if (this.focusMode) return;
                         event.preventDefault();
                         this.$nextTick(() => {
                             const el = this.$refs.quickInput;
@@ -610,14 +1067,22 @@
                             this.exitFocus();
                             return;
                         }
+                        // Space starts/pauses timer
+                        if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                            const tag = (event.target && event.target.tagName) || '';
+                            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON') {
+                                event.preventDefault();
+                                this.toggleTimer();
+                            }
+                            return;
+                        }
+                        return;
                     }
 
                     if (event.key === 'Enter' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
                         const tag = (event.target && event.target.tagName) || '';
-                        if (tag === 'INPUT' || tag === 'TEXTAREA') {
-                            return;
-                        }
-                        if (!this.focusMode && this.tasks.length > 0) {
+                        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+                        if (!this.focusMode && this.focusablePool.length > 0) {
                             event.preventDefault();
                             this.pickFocus();
                         }

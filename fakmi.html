@@ -7,7 +7,6 @@
     <title>Focus — Minimal Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css">
     <style>
         html,
@@ -236,6 +235,168 @@
         .num-clean {
             -moz-appearance: textfield;
         }
+
+        /* Side rails */
+        .battery-fill {
+            transition: height 700ms cubic-bezier(.2, .9, .3, 1.05), width 700ms cubic-bezier(.2, .9, .3, 1.05), filter 300ms ease;
+        }
+
+        .battery-full-glow {
+            animation: batteryGlow 2s ease-in-out infinite;
+        }
+
+        .battery-overfill-plume {
+            animation: overfillFlicker 1.6s ease-in-out infinite;
+            filter: blur(0.2px) drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
+        }
+
+        @keyframes overfillFlicker {
+
+            0%,
+            100% {
+                opacity: .75;
+                transform: translateX(-50%) scaleY(.94);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translateX(-50%) scaleY(1.06);
+            }
+        }
+
+        @keyframes batteryGlow {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.35));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 18px rgba(192, 132, 252, 0.55));
+            }
+        }
+
+
+        /* Lightweight reward effects: no canvas, no particle spam, no laptop begging for mercy. */
+        .celebration-screen {
+            animation: celebrationScreenFade 700ms ease-out both;
+            will-change: opacity;
+        }
+
+        @keyframes celebrationScreenFade {
+            0% {
+                opacity: 0;
+            }
+
+            18% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .battery-bump {
+            animation: batteryBump 520ms cubic-bezier(.2, .9, .3, 1.25) both;
+            will-change: transform, filter;
+        }
+
+        .battery-bump-lite {
+            animation: batteryBumpLite 520ms cubic-bezier(.2, .9, .3, 1.15) both;
+            will-change: transform, box-shadow;
+        }
+
+        @keyframes batteryBump {
+            0% {
+                transform: scale(1);
+                filter: none;
+            }
+
+            40% {
+                transform: scale(1.07);
+                filter: drop-shadow(0 0 18px rgba(129, 140, 248, 0.6));
+            }
+
+            100% {
+                transform: scale(1);
+                filter: none;
+            }
+        }
+
+        @keyframes batteryBumpLite {
+            0% {
+                transform: scale(1);
+                box-shadow: none;
+            }
+
+            40% {
+                transform: scale(1.015);
+                box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.35), 0 0 22px rgba(99, 102, 241, 0.15);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: none;
+            }
+        }
+
+        .reward-pop {
+            animation: rewardPop 820ms cubic-bezier(.2, .9, .25, 1) both;
+            will-change: transform, opacity;
+        }
+
+        @keyframes rewardPop {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, 10px) scale(.94);
+            }
+
+            16% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(1);
+            }
+
+            72% {
+                opacity: 1;
+                transform: translate(-50%, -18px) scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -34px) scale(.98);
+            }
+        }
+
+        .reward-toast {
+            animation-duration: .28s;
+        }
+
+        .reward-toast.toast-task {
+            box-shadow: 0 18px 55px rgba(0, 0, 0, .5), 0 0 28px rgba(99, 102, 241, .12);
+        }
+
+        .reward-toast.toast-routine {
+            box-shadow: 0 18px 55px rgba(0, 0, 0, .5), 0 0 32px rgba(168, 85, 247, .16);
+        }
+
+        .toast-icon {
+            animation: toastIconBounce 520ms cubic-bezier(.2, .9, .3, 1.25) both;
+        }
+
+        @keyframes toastIconBounce {
+            0% {
+                transform: scale(.85);
+            }
+
+            42% {
+                transform: scale(1.18);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 
@@ -243,6 +404,124 @@
 
     <div x-data="dashboard()" x-init="boot()" @keydown.window="handleGlobalKey($event)"
         @undo-task.window="undoTask($event.detail)" class="max-w-6xl mx-auto px-6 py-10 md:py-16">
+
+        <!-- LIGHTWEIGHT REWARD FX -->
+        <div x-cloak x-show="celebrationPulse" class="fixed inset-0 pointer-events-none z-40 celebration-screen" :class="celebrationPulse === 'strong' || celebrationPulse === 'overfill'
+                ? 'bg-gradient-to-br from-indigo-500/10 via-violet-500/10 to-fuchsia-500/10'
+                : 'bg-indigo-500/5'"></div>
+
+        <div class="fixed top-28 left-1/2 z-50 pointer-events-none">
+            <template x-for="pop in rewardPops" :key="pop.id">
+                <div class="reward-pop absolute left-0 top-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold shadow-2xl backdrop-blur"
+                    :class="pop.type === 'strong' || pop.type === 'overfill'
+                        ? 'bg-fuchsia-500/15 border-fuchsia-400/30 text-fuchsia-100 shadow-fuchsia-950/30'
+                        : 'bg-indigo-500/15 border-indigo-400/30 text-indigo-100 shadow-indigo-950/30'"
+                    x-text="pop.text"></div>
+            </template>
+        </div>
+
+        <!-- LEFT RAIL: DAILY BATTERY -->
+        <aside x-cloak
+            class="hidden 2xl:flex fixed left-4 top-1/2 -translate-y-1/2 h-[70vh] w-20 flex-col items-center justify-center pointer-events-none z-30">
+            <div class="flex flex-col items-center gap-4">
+                <div class="text-[10px] uppercase tracking-[0.25em] text-zinc-600 text-center leading-relaxed">
+                    Daily<br>Battery
+                </div>
+
+                <div class="relative w-12 h-72"
+                    :class="[batteryIsFull ? 'battery-full-glow' : '', batteryBump ? 'battery-bump' : '']">
+                    <div x-show="batteryOverfillPercent > 0" x-transition.opacity
+                        class="absolute left-1/2 -top-11 z-10 px-2 py-1 rounded-full bg-fuchsia-500/15 border border-fuchsia-400/30 text-[10px] font-mono text-fuchsia-200 shadow-lg shadow-fuchsia-950/30">
+                        +<span x-text="batteryOverfillPercent"></span>%
+                    </div>
+                    <div x-show="batteryOverfillPercent > 0" x-transition.opacity
+                        class="absolute left-1/2 -top-8 z-0 w-9 rounded-full bg-gradient-to-t from-fuchsia-500/10 via-violet-400/20 to-fuchsia-300/40 battery-overfill-plume"
+                        :style="'height:' + Math.min(64, 14 + batteryOverfillPercent * 0.35) + 'px'"></div>
+                    <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-2 rounded-t-md bg-zinc-800 z-10"></div>
+                    <div
+                        class="relative w-full h-full rounded-2xl border border-zinc-800 bg-zinc-950/80 overflow-hidden shadow-2xl shadow-black/40">
+                        <div class="absolute bottom-0 left-0 right-0 battery-fill"
+                            :class="batteryIsFull ? 'bg-gradient-to-t from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-gradient-to-t from-indigo-800 to-indigo-400'"
+                            :style="'height:' + batteryFillPercent + '%'">
+                        </div>
+                        <div
+                            class="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent opacity-30">
+                        </div>
+                        <div x-show="batteryIsFull" x-transition.opacity
+                            class="absolute inset-0 ring-2 ring-indigo-400/40 rounded-2xl animate-pulse"></div>
+                    </div>
+                </div>
+
+                <div class="text-center max-w-[96px]">
+                    <div class="font-mono text-lg font-semibold"
+                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-300'" x-text="batteryPercent + '%'">
+                    </div>
+                    <div class="text-[11px] text-zinc-500 mt-1" x-text="batteryLabel"></div>
+                    <div class="text-[10px] text-zinc-600 mt-1" x-show="routineTargetTotal > 0"
+                        x-text="routineBaselineLabel"></div>
+                    <div class="text-[10px] mt-2 leading-snug"
+                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-600'" x-text="batteryStatus"></div>
+                    <div x-show="taskDoneTodayCount > 0"
+                        class="mt-3 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-500">
+                        +<span x-text="taskDoneTodayCount"></span> task<span x-show="taskDoneTodayCount !== 1">s</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- RIGHT RAIL: DISTRACTION DOCK -->
+        <aside x-cloak
+            class="hidden 2xl:flex fixed right-4 top-1/2 -translate-y-1/2 h-[70vh] w-48 flex-col rounded-3xl bg-zinc-950/70 border border-zinc-800/70 p-4 shadow-2xl shadow-black/40 z-30 backdrop-blur">
+            <div class="mb-4 flex-shrink-0">
+                <h3 class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+                    Distraction Dock
+                </h3>
+                <p class="text-[11px] text-zinc-600 mt-2 leading-snug">
+                    Park brain noise here. Do not chase it. The raccoon can wait.
+                </p>
+            </div>
+
+            <form @submit.prevent="addDistraction()" class="mb-4 flex-shrink-0">
+                <input x-ref="distractionInputEl" type="text" x-model="distractionInput" @keydown.stop
+                    placeholder="not now thought..."
+                    class="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500" />
+            </form>
+
+            <div x-show="distractions.length === 0"
+                class="rounded-2xl border border-dashed border-zinc-800/80 p-4 text-center">
+                <p class="text-[11px] text-zinc-600 leading-snug">
+                    No parked thoughts. Suspiciously peaceful.
+                </p>
+            </div>
+
+            <ul class="space-y-2 overflow-y-auto pr-1 min-h-0">
+                <template x-for="item in distractions" :key="item.id">
+                    <li class="group fade-enter rounded-xl bg-zinc-900/60 border border-zinc-800/60 px-3 py-2">
+                        <div class="flex items-start gap-2">
+                            <p class="flex-1 text-xs text-zinc-400 leading-snug break-words" x-text="item.text"></p>
+                            <div class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click="promoteDistraction(item)"
+                                    class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-xs leading-none flex items-center justify-center"
+                                    title="Turn into task" aria-label="Turn distraction into task">
+                                    +
+                                </button>
+                                <button @click="removeDistraction(item)"
+                                    class="w-5 h-5 rounded-md bg-zinc-800/60 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 text-xs leading-none flex items-center justify-center"
+                                    title="Remove" aria-label="Remove distraction">
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    </li>
+                </template>
+            </ul>
+
+            <div x-show="distractions.length > 0" class="mt-4 pt-3 border-t border-zinc-800/70 flex-shrink-0">
+                <p class="text-[10px] text-zinc-600 leading-snug">
+                    Use <span class="text-indigo-300">+</span> to promote one into a real task later.
+                </p>
+            </div>
+        </aside>
 
         <!-- Header -->
         <header class="flex items-center justify-between mb-10">
@@ -310,6 +589,30 @@
                 </p>
             </div>
 
+            <!-- Mobile/normal width battery summary -->
+            <div class="2xl:hidden mb-8 rounded-2xl bg-zinc-900/50 border border-zinc-800/60 px-4 py-3 transition-transform"
+                :class="batteryBump ? 'battery-bump-lite' : ''">
+                <div class="flex items-center justify-between gap-4 mb-2">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Daily Battery</p>
+                        <p class="text-xs text-zinc-600 mt-1" x-text="batteryStatus"></p>
+                    </div>
+                    <div class="font-mono text-sm font-semibold"
+                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-300'" x-text="batteryPercent + '%'">
+                    </div>
+                </div>
+                <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                    <div class="h-full battery-fill rounded-full"
+                        :class="batteryIsFull ? 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-indigo-500/80'"
+                        :style="'width:' + batteryFillPercent + '%'"></div>
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-3 text-[10px] text-zinc-600">
+                    <span x-text="batteryLabel"></span>
+                    <span x-show="batteryOverfillPercent > 0" class="text-fuchsia-300 font-mono">+<span
+                            x-text="batteryOverfillPercent"></span>% overfill</span>
+                </div>
+            </div>
+
             <!-- Empty state -->
             <div x-show="tasks.length === 0 && completed.length === 0 && routines.length === 0"
                 class="text-center py-12">
@@ -319,8 +622,8 @@
             <!-- ============ 3-COLUMN GRID ============ -->
             <div class="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
 
-                <!-- LEFT: Daily Routines -->
-                <section class="order-2 lg:order-1 mt-10 lg:mt-0">
+                <!-- CENTER: Daily Routines -->
+                <section class="order-2 lg:order-2 mt-10 lg:mt-0">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-3">
                             <div class="h-px w-6 bg-zinc-800"></div>
@@ -411,8 +714,8 @@
                     </ul>
                 </section>
 
-                <!-- CENTER: Active Tasks -->
-                <section class="order-1 lg:order-2 mt-0">
+                <!-- LEFT: Active Tasks -->
+                <section class="order-1 lg:order-1 mt-0">
                     <!-- All-done celebration state -->
                     <div x-show="tasks.length === 0 && completed.length > 0 && incompleteRoutinesCount === 0"
                         class="text-center py-12">
@@ -519,6 +822,38 @@
                     </ul>
                 </section>
             </div>
+
+            <!-- Mobile/normal width distraction dock -->
+            <section
+                class="2xl:hidden mt-10 rounded-3xl bg-zinc-950/70 border border-zinc-800/70 p-4 shadow-xl shadow-black/20">
+                <div class="mb-4">
+                    <h3 class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Distraction Dock</h3>
+                    <p class="text-xs text-zinc-600 mt-2">Park random thoughts without turning them into side quests.
+                    </p>
+                </div>
+                <form @submit.prevent="addDistraction()" class="mb-4">
+                    <input type="text" x-model="distractionInput" @keydown.stop placeholder="not now thought..."
+                        class="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-indigo-500" />
+                </form>
+                <div x-show="distractions.length === 0"
+                    class="rounded-2xl border border-dashed border-zinc-800/80 p-4 text-center">
+                    <p class="text-xs text-zinc-600">No parked thoughts.</p>
+                </div>
+                <ul class="space-y-2">
+                    <template x-for="item in distractions" :key="item.id">
+                        <li
+                            class="fade-enter rounded-xl bg-zinc-900/60 border border-zinc-800/60 px-3 py-2 flex items-start gap-2">
+                            <p class="flex-1 text-sm text-zinc-400 leading-snug break-words" x-text="item.text"></p>
+                            <button @click="promoteDistraction(item)"
+                                class="w-7 h-7 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-sm leading-none flex items-center justify-center"
+                                title="Turn into task" aria-label="Turn distraction into task">+</button>
+                            <button @click="removeDistraction(item)"
+                                class="w-7 h-7 rounded-md bg-zinc-800/60 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 text-sm leading-none flex items-center justify-center"
+                                title="Remove" aria-label="Remove distraction">×</button>
+                        </li>
+                    </template>
+                </ul>
+            </section>
         </div>
 
         <!-- ===================== FOCUS MODE ===================== -->
@@ -545,6 +880,19 @@
                 <span x-text="'Combo x' + combo"></span>
                 <span class="text-zinc-600 ml-2">· keep it going</span>
             </p>
+
+            <!-- Focus-mode dock for non-2xl screens -->
+            <div
+                class="2xl:hidden mt-8 w-full max-w-md rounded-2xl bg-zinc-950/60 border border-zinc-800/70 p-3 text-left">
+                <form @submit.prevent="addDistraction()" class="flex items-center gap-2">
+                    <input type="text" x-model="distractionInput" @keydown.stop placeholder="park a distraction..."
+                        class="flex-1 min-w-0 bg-transparent text-xs text-zinc-300 placeholder-zinc-600" />
+                    <button type="submit"
+                        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 text-xs hover:bg-indigo-500/25">
+                        Park
+                    </button>
+                </form>
+            </div>
 
             <!-- SPEEDRUN TIMER -->
             <div class="mt-10 flex flex-col items-center">
@@ -632,9 +980,10 @@
     </div>
 
     <!-- UNDO TOAST -->
-    <div x-cloak x-data="toastState()" x-show="visible" :class="exiting ? 'toast-exit' : 'toast-enter'"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 min-w-[280px] max-w-[92vw] px-4 py-3 rounded-2xl bg-zinc-900/95 backdrop-blur border border-zinc-800 shadow-2xl shadow-black/50 flex items-center gap-3">
-        <div class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center">
+    <div x-cloak x-data="toastState()" x-show="visible"
+        :class="[exiting ? 'toast-exit' : 'toast-enter', pending?.kind === 'routine' ? 'toast-routine' : 'toast-task']"
+        class="reward-toast fixed bottom-6 left-1/2 -translate-x-1/2 z-50 min-w-[280px] max-w-[92vw] px-4 py-3 rounded-2xl bg-zinc-900/95 backdrop-blur border border-zinc-800 shadow-2xl shadow-black/50 flex items-center gap-3">
+        <div class="toast-icon flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor" stroke-width="3">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -698,10 +1047,12 @@
                 tasks: [],
                 completed: [],
                 routines: [],
+                distractions: [],
 
                 input: '',
                 routineInput: '',
                 routineTarget: 3,
+                distractionInput: '',
 
                 focusMode: false,
                 focusedItem: null,
@@ -712,6 +1063,11 @@
                 // Transient UI state for animations & background tasks (not persisted)
                 lastBumpedRoutineId: null,
                 comboDecayInterval: null,
+                celebrationPulse: null,
+                batteryBump: false,
+                rewardPops: [],
+                rewardPulseTimer: null,
+                batteryBumpTimer: null,
 
                 // Timer
                 defaultTimerMinutes: 15,
@@ -736,6 +1092,9 @@
 
                         const savedRoutines = localStorage.getItem('focus.routines');
                         if (savedRoutines) this.routines = JSON.parse(savedRoutines);
+
+                        const savedDistractions = localStorage.getItem('focus.distractions');
+                        if (savedDistractions) this.distractions = JSON.parse(savedDistractions);
 
                         const savedCombo = localStorage.getItem('focus.combo');
                         if (savedCombo) this.combo = Math.max(1, parseInt(savedCombo, 10) || 1);
@@ -781,6 +1140,7 @@
                         this.tasks = [];
                         this.completed = [];
                         this.routines = [];
+                        this.distractions = [];
                     }
 
                     this.$watch('tasks', () => {
@@ -799,6 +1159,7 @@
                     localStorage.setItem('focus.tasks', JSON.stringify(this.tasks));
                     localStorage.setItem('focus.completed', JSON.stringify(this.completed));
                     localStorage.setItem('focus.routines', JSON.stringify(this.routines));
+                    localStorage.setItem('focus.distractions', JSON.stringify(this.distractions));
                     localStorage.setItem('focus.lastActiveDate', this.todayStr());
                     localStorage.setItem('focus.combo', String(this.combo));
                     localStorage.setItem('focus.lastCompletionAt', String(this.lastCompletionAt));
@@ -834,6 +1195,76 @@
                     return items;
                 },
 
+                get routineTargetTotal() {
+                    return this.routines.reduce((sum, r) => sum + Math.max(0, parseInt(r.target, 10) || 0), 0);
+                },
+                get routineDoneTotal() {
+                    return this.routines.reduce((sum, r) => {
+                        const target = Math.max(1, parseInt(r.target, 10) || 1);
+                        const count = Math.max(0, parseInt(r.count, 10) || 0);
+                        return sum + Math.min(count, target);
+                    }, 0);
+                },
+                get taskDoneTodayCount() {
+                    return this.completed.length;
+                },
+                get batteryTaskUnits() {
+                    // One completed task counts as one charge unit. The routine target total still defines 100%,
+                    // so tasks can help on rough days and can push the battery into overfill.
+                    return this.taskDoneTodayCount;
+                },
+                get batteryTotalUnits() {
+                    return this.routineDoneTotal + this.batteryTaskUnits;
+                },
+                get batteryPercent() {
+                    if (this.routineTargetTotal > 0) {
+                        return Math.round((this.batteryTotalUnits / this.routineTargetTotal) * 100);
+                    }
+
+                    // No routines means there is no meaningful baseline yet. Tasks still charge the display,
+                    // because a blank battery after doing work is the sort of UI cruelty humans invented meetings for.
+                    return this.taskDoneTodayCount > 0 ? Math.min(300, this.taskDoneTodayCount * 100) : 0;
+                },
+                get batteryFillPercent() {
+                    return Math.max(0, Math.min(100, this.batteryPercent));
+                },
+                get batteryOverfillPercent() {
+                    return Math.max(0, this.batteryPercent - 100);
+                },
+                get batteryIsFull() {
+                    return this.batteryPercent >= 100;
+                },
+                get routineBaselineIsComplete() {
+                    return this.routineTargetTotal > 0 && this.routineDoneTotal >= this.routineTargetTotal;
+                },
+                get routineBaselineLabel() {
+                    if (this.routineTargetTotal === 0) return 'No routine baseline';
+                    return `${this.routineDoneTotal}/${this.routineTargetTotal} routine`;
+                },
+                get batteryLabel() {
+                    if (this.routineTargetTotal === 0) {
+                        return this.taskDoneTodayCount > 0 ? `${this.taskDoneTodayCount} task${this.taskDoneTodayCount === 1 ? '' : 's'}` : 'No baseline';
+                    }
+
+                    return `${this.batteryTotalUnits}/${this.routineTargetTotal} charge`;
+                },
+                get batteryStatus() {
+                    if (this.routineTargetTotal === 0) {
+                        return 'Add routines to define 100%';
+                    }
+
+                    if (this.batteryOverfillPercent > 0) {
+                        return this.routineBaselineIsComplete ? 'Baseline done · overfilled' : 'Effort overfilled · routines remain';
+                    }
+
+                    if (this.batteryIsFull) {
+                        return this.routineBaselineIsComplete ? 'Minimum day secured' : 'Effort goal met · routines remain';
+                    }
+
+                    const remaining = this.routineTargetTotal - this.batteryTotalUnits;
+                    return `${remaining} charge left to 100%`;
+                },
+
                 addTask() {
                     const text = this.input.trim();
                     if (!text) return;
@@ -859,13 +1290,17 @@
 
                 completeTask(task) {
                     this.checkComboDecay();
-                    this.celebrate();
+                    const beforeBatteryPercent = this.batteryPercent;
                     const snapshot = { kind: 'task', id: task.id, text: task.text, previousCombo: this.combo };
                     this.moveToCompleted(task);
 
                     this.combo = Math.min(99, this.combo + 1);
                     this.lastCompletionAt = Date.now();
                     this.save();
+
+                    const afterBatteryPercent = this.batteryPercent;
+                    const rewardType = afterBatteryPercent > 100 ? 'overfill' : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : 'normal');
+                    this.celebrate(rewardType, '✓ +1 task');
 
                     window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
                 },
@@ -919,15 +1354,20 @@
                 incrementRoutine(routine) {
                     if (routine.count >= routine.target) return;
 
+                    this.checkComboDecay();
+                    const beforeBatteryPercent = this.batteryPercent;
+                    const nextCount = routine.count + 1;
+                    const finishesRoutine = nextCount >= routine.target;
+
                     const snapshot = {
                         kind: 'routine',
                         id: routine.id,
-                        text: `${routine.name} · ${routine.count + 1}/${routine.target}`,
+                        text: `${routine.name} · ${nextCount}/${routine.target}`,
                         previousCount: routine.count,
                         previousCombo: this.combo
                     };
 
-                    routine.count += 1;
+                    routine.count = nextCount;
 
                     // Trigger bump animation on this routine's count (replays CSS scale anim reliably)
                     this.lastBumpedRoutineId = routine.id;
@@ -939,16 +1379,43 @@
                         }, 350);
                     });
 
-                    this.checkComboDecay();
                     this.combo = Math.min(99, this.combo + 1);
                     this.lastCompletionAt = Date.now();
-
-                    if (routine.count >= routine.target) {
-                        this.celebrate();
-                    }
-
                     this.save();
+
+                    const afterBatteryPercent = this.batteryPercent;
+                    const rewardType = afterBatteryPercent > 100 ? 'overfill' : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : (finishesRoutine ? 'strong' : 'normal'));
+                    this.celebrate(rewardType, finishesRoutine ? '✓ routine done' : '✓ +1 rep');
+
                     window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
+                },
+
+                addDistraction() {
+                    const text = this.distractionInput.trim();
+                    if (!text) return;
+
+                    this.distractions.unshift({
+                        id: Date.now() + Math.random(),
+                        text,
+                        createdAt: Date.now()
+                    });
+
+                    this.distractionInput = '';
+                    this.save();
+                },
+
+                removeDistraction(item) {
+                    this.distractions = this.distractions.filter(d => d.id !== item.id);
+                    this.save();
+                },
+
+                promoteDistraction(item) {
+                    this.tasks.unshift({
+                        id: Date.now() + Math.random(),
+                        text: item.text
+                    });
+                    this.removeDistraction(item);
+                    this.save();
                 },
 
                 pickFocus() {
@@ -1069,6 +1536,9 @@
                 },
 
                 handleGlobalKey(event) {
+                    const tag = (event.target && event.target.tagName) || '';
+                    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable;
+
                     if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
                         if (this.focusMode) return;
                         event.preventDefault();
@@ -1084,6 +1554,8 @@
                     }
 
                     if (this.focusMode) {
+                        if (isTyping) return;
+
                         if (event.key === 'Enter') {
                             event.preventDefault();
                             this.completeFocused();
@@ -1095,7 +1567,6 @@
                             return;
                         }
                         if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-                            const tag = (event.target && event.target.tagName) || '';
                             if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'BUTTON') {
                                 event.preventDefault();
                                 this.toggleTimer();
@@ -1106,8 +1577,7 @@
                     }
 
                     if (event.key === 'Enter' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
-                        const tag = (event.target && event.target.tagName) || '';
-                        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+                        if (isTyping) return;
                         if (!this.focusMode && this.focusablePool.length > 0) {
                             event.preventDefault();
                             this.pickFocus();
@@ -1115,16 +1585,40 @@
                     }
                 },
 
-                celebrate() {
-                    if (typeof confetti === 'undefined') return;
-                    const duration = 1200;
-                    const end = Date.now() + duration;
-                    const colors = ['#6366f1', '#a855f7', '#ec4899', '#22d3ee', '#fbbf24'];
-                    (function frame() {
-                        confetti({ particleCount: 4, angle: 60, spread: 75, origin: { x: 0, y: 0.7 }, colors });
-                        confetti({ particleCount: 4, angle: 120, spread: 75, origin: { x: 1, y: 0.7 }, colors });
-                        if (Date.now() < end) requestAnimationFrame(frame);
-                    })();
+                celebrate(type = 'normal', text = '✓ +1') {
+                    // CSS-only reward stack: screen pulse, battery bump, tiny floating +1, and the existing toast.
+                    // No canvas, no external confetti library, no ceremonial sacrifice of frame rate.
+                    const rewardType = type || 'normal';
+                    this.celebrationPulse = rewardType;
+                    this.batteryBump = false;
+
+                    if (this.rewardPulseTimer) clearTimeout(this.rewardPulseTimer);
+                    if (this.batteryBumpTimer) clearTimeout(this.batteryBumpTimer);
+
+                    this.$nextTick(() => {
+                        this.batteryBump = true;
+                    });
+
+                    const pop = {
+                        id: Date.now() + Math.random(),
+                        type: rewardType,
+                        text: rewardType === 'overfill' ? `${text} · overcharge` : text
+                    };
+                    this.rewardPops.push(pop);
+
+                    setTimeout(() => {
+                        this.rewardPops = this.rewardPops.filter(p => p.id !== pop.id);
+                    }, 850);
+
+                    this.rewardPulseTimer = setTimeout(() => {
+                        this.celebrationPulse = null;
+                        this.rewardPulseTimer = null;
+                    }, rewardType === 'normal' ? 520 : 720);
+
+                    this.batteryBumpTimer = setTimeout(() => {
+                        this.batteryBump = false;
+                        this.batteryBumpTimer = null;
+                    }, 540);
                 }
             }
         }

@@ -1,0 +1,5 @@
+# Ignore all HTML files in this directory
+*.html
+
+# Exception: Do NOT ignore fakmi.html
+!fakmi.html

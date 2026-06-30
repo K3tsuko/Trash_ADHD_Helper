@@ -45,6 +45,25 @@
             animation: glow 2.2s infinite;
         }
 
+        .pulse-glow-gold {
+            box-shadow: 0 0 0 0 rgba(251, 191, 36, .48);
+            animation: glowGold 2.2s infinite;
+        }
+
+        @keyframes glowGold {
+            0% {
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, .42);
+            }
+
+            70% {
+                box-shadow: 0 0 0 18px rgba(251, 191, 36, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+            }
+        }
+
         @keyframes glow {
             0% {
                 box-shadow: 0 0 0 0 rgba(99, 102, 241, .45);
@@ -104,7 +123,7 @@
         @keyframes toastIn {
             from {
                 opacity: 0;
-                transform: translate(-50%, 20px);
+                transform: translate(-50%, -20px);
             }
 
             to {
@@ -121,7 +140,7 @@
 
             to {
                 opacity: 0;
-                transform: translate(-50%, 20px);
+                transform: translate(-50%, -20px);
             }
         }
 
@@ -156,9 +175,38 @@
             filter: drop-shadow(0 0 7px rgba(244, 114, 182, 0.6));
         }
 
-        .combo-t5 {
+        .combo-t5,
+        .combo-gold {
             color: #fbbf24;
             animation: comboPulse 1.6s ease-in-out infinite;
+        }
+
+        .charged-mode input:focus {
+            border-color: #f59e0b !important;
+        }
+
+        .charged-mode ::selection {
+            background: #f59e0b;
+            color: #111827;
+        }
+
+        .charged-mode .routine-done {
+            background: linear-gradient(90deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.10));
+            border-color: rgba(251, 191, 36, 0.30) !important;
+        }
+
+        .charged-mode .routine-done .routine-name {
+            color: rgb(212 212 216);
+        }
+
+        .charged-mode .distraction-promote-btn {
+            background-color: rgba(251, 191, 36, 0.15) !important;
+            color: #fbbf24 !important;
+        }
+
+        .charged-mode .distraction-promote-btn:hover {
+            background-color: rgba(251, 191, 36, 0.28) !important;
+            color: #fffbeb !important;
         }
 
         /* Timer styles */
@@ -245,23 +293,18 @@
             animation: batteryGlow 2s ease-in-out infinite;
         }
 
-        .battery-overfill-plume {
-            animation: overfillFlicker 1.6s ease-in-out infinite;
-            filter: blur(0.2px) drop-shadow(0 0 14px rgba(244, 114, 182, 0.45));
+        .daily-charge-complete {
+            border-color: rgba(250, 204, 21, 0.28) !important;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48), 0 0 34px rgba(250, 204, 21, 0.08);
         }
 
-        @keyframes overfillFlicker {
+        .charge-card-complete {
+            border-color: rgba(250, 204, 21, 0.32) !important;
+            background: linear-gradient(180deg, rgba(250, 204, 21, 0.08), rgba(39, 39, 42, 0.24));
+        }
 
-            0%,
-            100% {
-                opacity: .75;
-                transform: translateX(-50%) scaleY(.94);
-            }
-
-            50% {
-                opacity: 1;
-                transform: translateX(-50%) scaleY(1.06);
-            }
+        .battery-complete-glow {
+            animation: batteryGoldGlow 2.2s ease-in-out infinite;
         }
 
         @keyframes batteryGlow {
@@ -273,6 +316,18 @@
 
             50% {
                 filter: drop-shadow(0 0 18px rgba(192, 132, 252, 0.55));
+            }
+        }
+
+        @keyframes batteryGoldGlow {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.35));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 22px rgba(250, 204, 21, 0.62));
             }
         }
 
@@ -403,68 +458,126 @@
 <body class="min-h-screen text-zinc-100 antialiased">
 
     <div x-data="dashboard()" x-init="boot()" @keydown.window="handleGlobalKey($event)"
-        @undo-task.window="undoTask($event.detail)" class="max-w-6xl mx-auto px-6 py-10 md:py-16">
+        @undo-task.window="undoTask($event.detail)" class="max-w-6xl mx-auto px-6 py-10 md:py-16"
+        :class="dailyChargeComplete ? 'charged-mode' : ''">
 
         <!-- LIGHTWEIGHT REWARD FX -->
-        <div x-cloak x-show="celebrationPulse" class="fixed inset-0 pointer-events-none z-40 celebration-screen" :class="celebrationPulse === 'strong' || celebrationPulse === 'overfill'
-                ? 'bg-gradient-to-br from-indigo-500/10 via-violet-500/10 to-fuchsia-500/10'
-                : 'bg-indigo-500/5'"></div>
+        <div x-cloak x-show="celebrationPulse" class="fixed inset-0 pointer-events-none z-40 celebration-screen" :class="celebrationPulse === 'complete'
+                ? 'bg-gradient-to-br from-yellow-300/10 via-amber-400/10 to-fuchsia-400/8'
+                : (celebrationPulse === 'strong' || celebrationPulse === 'overfill'
+                    ? 'bg-gradient-to-br from-indigo-500/10 via-violet-500/10 to-fuchsia-500/10'
+                    : 'bg-indigo-500/5')"></div>
 
         <div class="fixed top-28 left-1/2 z-50 pointer-events-none">
             <template x-for="pop in rewardPops" :key="pop.id">
                 <div class="reward-pop absolute left-0 top-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold shadow-2xl backdrop-blur"
-                    :class="pop.type === 'strong' || pop.type === 'overfill'
-                        ? 'bg-fuchsia-500/15 border-fuchsia-400/30 text-fuchsia-100 shadow-fuchsia-950/30'
-                        : 'bg-indigo-500/15 border-indigo-400/30 text-indigo-100 shadow-indigo-950/30'"
+                    :class="pop.type === 'complete'
+                        ? 'bg-yellow-400/15 border-yellow-300/35 text-yellow-100 shadow-yellow-950/30'
+                        : (pop.type === 'strong' || pop.type === 'overfill'
+                            ? 'bg-fuchsia-500/15 border-fuchsia-400/30 text-fuchsia-100 shadow-fuchsia-950/30'
+                            : 'bg-indigo-500/15 border-indigo-400/30 text-indigo-100 shadow-indigo-950/30')"
                     x-text="pop.text"></div>
             </template>
         </div>
 
-        <!-- LEFT RAIL: DAILY BATTERY -->
+        <!-- LEFT RAIL: DAILY CHARGE -->
         <aside x-cloak
-            class="hidden 2xl:flex fixed left-4 top-1/2 -translate-y-1/2 h-[70vh] w-20 flex-col items-center justify-center pointer-events-none z-30">
-            <div class="flex flex-col items-center gap-4">
-                <div class="text-[10px] uppercase tracking-[0.25em] text-zinc-600 text-center leading-relaxed">
-                    Daily<br>Battery
+            class="hidden 2xl:flex fixed left-4 top-1/2 -translate-y-1/2 h-[70vh] w-48 flex-col rounded-3xl bg-zinc-950/70 border border-zinc-800/70 p-4 shadow-2xl shadow-black/40 z-30 backdrop-blur"
+            :class="dailyChargeComplete ? 'daily-charge-complete' : ''">
+            <div class="mb-4 flex-shrink-0 flex items-center justify-between gap-3">
+                <h3 class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+                    Daily Charge
+                </h3>
+                <div class="flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-mono font-semibold leading-none"
+                    :class="dailyChargeComplete ? 'bg-amber-400/10 border-amber-300/30 text-amber-200' : 'bg-zinc-900 border-zinc-800 text-zinc-400'"
+                    title="Tasks and routine reps completed today" aria-label="Tasks and routine reps completed today">
+                    <span :class="dailyChargeComplete ? 'text-amber-300' : 'text-violet-300'">✓</span>
+                    <span x-text="dailyChargeDoneCount"></span>
                 </div>
+            </div>
 
-                <div class="relative w-12 h-72"
-                    :class="[batteryIsFull ? 'battery-full-glow' : '', batteryBump ? 'battery-bump' : '']">
-                    <div x-show="batteryOverfillPercent > 0" x-transition.opacity
-                        class="absolute left-1/2 -top-11 z-10 px-2 py-1 rounded-full bg-fuchsia-500/15 border border-fuchsia-400/30 text-[10px] font-mono text-fuchsia-200 shadow-lg shadow-fuchsia-950/30">
-                        +<span x-text="batteryOverfillPercent"></span>%
+            <div class="grid grid-cols-2 gap-3 flex-shrink-0 min-w-0">
+                <!-- Routine Battery -->
+                <div class="rounded-2xl bg-zinc-900/45 border border-zinc-800/60 px-2.5 py-3 text-center overflow-hidden min-w-0"
+                    :class="dailyChargeComplete ? 'charge-card-complete' : ''">
+                    <div class="text-[8px] uppercase tracking-[0.15em] leading-snug"
+                        :class="dailyChargeComplete ? 'text-amber-200/80' : 'text-zinc-500'">
+                        Routine<br>Battery
                     </div>
-                    <div x-show="batteryOverfillPercent > 0" x-transition.opacity
-                        class="absolute left-1/2 -top-8 z-0 w-9 rounded-full bg-gradient-to-t from-fuchsia-500/10 via-violet-400/20 to-fuchsia-300/40 battery-overfill-plume"
-                        :style="'height:' + Math.min(64, 14 + batteryOverfillPercent * 0.35) + 'px'"></div>
-                    <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-2 rounded-t-md bg-zinc-800 z-10"></div>
-                    <div
-                        class="relative w-full h-full rounded-2xl border border-zinc-800 bg-zinc-950/80 overflow-hidden shadow-2xl shadow-black/40">
-                        <div class="absolute bottom-0 left-0 right-0 battery-fill"
-                            :class="batteryIsFull ? 'bg-gradient-to-t from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-gradient-to-t from-indigo-800 to-indigo-400'"
-                            :style="'height:' + batteryFillPercent + '%'">
+                    <div class="relative mx-auto mt-3 w-10 h-52"
+                        :class="[dailyChargeComplete ? 'battery-complete-glow' : (routineBatteryIsFull ? 'battery-full-glow' : ''), batteryBump ? 'battery-bump' : '']">
+                        <div
+                            class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-5 h-1.5 rounded-t-md bg-zinc-800 z-10">
                         </div>
                         <div
-                            class="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent opacity-30">
+                            class="relative w-full h-full rounded-2xl border border-zinc-800 bg-zinc-950/80 overflow-hidden shadow-xl shadow-black/30">
+                            <div class="absolute bottom-0 left-0 right-0 battery-fill"
+                                :class="dailyChargeComplete ? 'bg-gradient-to-t from-amber-500 via-yellow-300 to-amber-200' : (routineBatteryIsFull ? 'bg-gradient-to-t from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-gradient-to-t from-indigo-800 to-indigo-400')"
+                                :style="'height:' + routineBatteryFillPercent + '%'">
+                            </div>
+                            <div
+                                class="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent opacity-30">
+                            </div>
+                            <div x-show="routineBatteryIsFull" x-transition.opacity
+                                class="absolute inset-0 ring-2 rounded-2xl animate-pulse"
+                                :class="dailyChargeComplete ? 'ring-yellow-300/50' : 'ring-indigo-400/40'"></div>
                         </div>
-                        <div x-show="batteryIsFull" x-transition.opacity
-                            class="absolute inset-0 ring-2 ring-indigo-400/40 rounded-2xl animate-pulse"></div>
                     </div>
+                    <div class="mt-3 font-mono text-base font-semibold"
+                        :class="dailyChargeComplete ? 'text-yellow-200' : (routineBatteryIsFull ? 'text-indigo-300' : 'text-zinc-300')"
+                        x-text="routineBatteryPercent + '%'"></div>
+                    <div class="text-[10px] text-zinc-500 mt-1 leading-snug" x-text="routineBatteryLabel"></div>
                 </div>
 
-                <div class="text-center max-w-[96px]">
-                    <div class="font-mono text-lg font-semibold"
-                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-300'" x-text="batteryPercent + '%'">
+                <!-- Task Momentum -->
+                <div class="rounded-2xl bg-zinc-900/45 border border-zinc-800/60 px-2.5 py-3 text-center overflow-hidden min-w-0"
+                    :class="dailyChargeComplete ? 'charge-card-complete' : ''">
+                    <div class="text-[8px] uppercase tracking-[0.15em] leading-snug"
+                        :class="dailyChargeComplete ? 'text-amber-200/80' : 'text-zinc-500'">
+                        Task<br>Momentum
                     </div>
-                    <div class="text-[11px] text-zinc-500 mt-1" x-text="batteryLabel"></div>
-                    <div class="text-[10px] text-zinc-600 mt-1" x-show="routineTargetTotal > 0"
-                        x-text="routineBaselineLabel"></div>
-                    <div class="text-[10px] mt-2 leading-snug"
-                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-600'" x-text="batteryStatus"></div>
-                    <div x-show="taskDoneTodayCount > 0"
-                        class="mt-3 px-2 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-500">
-                        +<span x-text="taskDoneTodayCount"></span> task<span x-show="taskDoneTodayCount !== 1">s</span>
+                    <div class="relative mx-auto mt-3 w-10 h-52"
+                        :class="[dailyChargeComplete ? 'battery-complete-glow' : (taskMomentumIsFull ? 'battery-full-glow' : ''), batteryBump ? 'battery-bump' : '']">
+                        <div
+                            class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-5 h-1.5 rounded-t-md bg-zinc-800 z-10">
+                        </div>
+                        <div
+                            class="relative w-full h-full rounded-2xl border border-zinc-800 bg-zinc-950/80 overflow-hidden shadow-xl shadow-black/30">
+                            <div class="absolute bottom-0 left-0 right-0 battery-fill"
+                                :class="dailyChargeComplete ? 'bg-gradient-to-t from-amber-500 via-yellow-300 to-amber-200' : (taskMomentumIsFull ? 'bg-gradient-to-t from-fuchsia-500 via-violet-500 to-indigo-400' : 'bg-gradient-to-t from-violet-900 to-violet-400')"
+                                :style="'height:' + taskMomentumFillPercent + '%'">
+                            </div>
+                            <div
+                                class="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent opacity-30">
+                            </div>
+                            <div x-show="taskMomentumIsFull" x-transition.opacity
+                                class="absolute inset-0 ring-2 rounded-2xl animate-pulse"
+                                :class="dailyChargeComplete ? 'ring-yellow-300/50' : 'ring-violet-400/40'"></div>
+                        </div>
                     </div>
+                    <div class="mt-3 font-mono text-base font-semibold"
+                        :class="dailyChargeComplete ? 'text-yellow-200' : (taskMomentumIsFull ? 'text-violet-300' : 'text-zinc-300')"
+                        x-text="taskMomentumPercent + '%'"></div>
+                    <div class="text-[10px] text-zinc-500 mt-1 leading-snug" x-text="taskMomentumLabel"></div>
+                </div>
+            </div>
+
+            <div class="mt-4 flex-shrink-0 rounded-2xl bg-zinc-900/35 border border-zinc-800/50 px-3 py-3 overflow-hidden"
+                :class="dailyChargeComplete ? 'border-yellow-300/25 bg-yellow-400/5' : ''">
+                <div class="flex items-center justify-center gap-2 pointer-events-auto">
+                    <button @click="adjustDailyTaskTarget(-1)"
+                        class="w-8 h-8 rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                        aria-label="Decrease daily task target">−</button>
+                    <div class="min-w-14 px-3 py-2 rounded-xl bg-zinc-950/70 border border-zinc-800 text-center"
+                        :class="dailyChargeComplete ? 'border-yellow-300/30' : ''">
+                        <div class="font-mono text-base leading-none"
+                            :class="dailyChargeComplete ? 'text-yellow-200' : 'text-violet-200'"
+                            x-text="taskMomentumTarget"></div>
+                        <div class="text-[8px] text-zinc-600 mt-1">/day</div>
+                    </div>
+                    <button @click="adjustDailyTaskTarget(1)"
+                        class="w-8 h-8 rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                        aria-label="Increase daily task target">+</button>
                 </div>
             </div>
         </aside>
@@ -501,7 +614,7 @@
                             <p class="flex-1 text-xs text-zinc-400 leading-snug break-words" x-text="item.text"></p>
                             <div class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button @click="promoteDistraction(item)"
-                                    class="w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-xs leading-none flex items-center justify-center"
+                                    class="distraction-promote-btn w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-xs leading-none flex items-center justify-center"
                                     title="Turn into task" aria-label="Turn distraction into task">
                                     +
                                 </button>
@@ -520,26 +633,35 @@
                 <p class="text-[10px] text-zinc-600 leading-snug">
                     Use <span class="text-indigo-300">+</span> to promote one into a real task later.
                 </p>
+                <button @click="clearDistractions()"
+                    class="mt-2 text-[10px] text-zinc-600 hover:text-red-300 transition-colors">
+                    Clear dock
+                </button>
             </div>
         </aside>
 
         <!-- Header -->
         <header class="flex items-center justify-between mb-10">
             <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full bg-indigo-500 pulse-glow"></div>
+                <div class="w-3 h-3 rounded-full"
+                    :class="dailyChargeComplete ? 'bg-amber-400 pulse-glow-gold' : 'bg-indigo-500 pulse-glow'"></div>
                 <h1 class="text-lg font-semibold tracking-tight text-zinc-300">focus</h1>
             </div>
-            <div class="flex items-center gap-4 text-xs">
-                <div x-show="combo > 1 && !focusMode"
-                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800"
-                    x-transition>
-                    <span class="w-1.5 h-1.5 rounded-full bg-current" :class="comboTierClass"></span>
-                    <span class="font-mono font-medium tracking-tight" :class="comboTierClass"
-                        x-text="'x' + combo"></span>
+            <div class="flex items-center gap-3 text-xs">
+                <div class="hidden sm:flex items-center gap-2 text-[11px]">
+                    <button @click="exportData()"
+                        class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700 transition-colors">
+                        Export
+                    </button>
+                    <label
+                        class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700 transition-colors cursor-pointer">
+                        Import
+                        <input type="file" accept="application/json" class="hidden" @change="importData($event)">
+                    </label>
                 </div>
                 <div class="text-zinc-500">
-                    <span x-text="tasks.length + incompleteRoutinesCount"></span>
-                    <span x-text="(tasks.length + incompleteRoutinesCount) === 1 ? 'open item' : 'open items'"></span>
+                    <span x-text="focusablePool.length"></span>
+                    <span x-text="focusablePool.length === 1 ? 'focusable item' : 'focusable items'"></span>
                 </div>
             </div>
         </header>
@@ -562,12 +684,27 @@
                             class="px-1.5 py-0.5 bg-zinc-800/60 rounded text-zinc-500 font-mono text-[10px]">Space</kbd>
                         jump to input</span>
                 </p>
+                <div class="mt-4 flex items-center gap-2 flex-wrap text-xs">
+                    <span class="text-zinc-600 mr-1">Size</span>
+                    <template x-for="option in estimateOptions" :key="option.minutes">
+                        <button type="button" @click="taskEstimateMinutes = option.minutes"
+                            class="px-3 py-1.5 rounded-full border transition-colors font-mono"
+                            :class="taskEstimateMinutes === option.minutes
+                                ? (dailyChargeComplete
+                                    ? 'bg-amber-500/15 border-amber-400/45 text-amber-200'
+                                    : 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300')
+                                : 'bg-zinc-900/60 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'" x-text="option.label"></button>
+                    </template>
+                </div>
             </div>
 
             <!-- Focus Button -->
             <div class="mb-10" x-show="focusablePool.length > 0">
                 <button @click="pickFocus()"
-                    class="group w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 transition-all text-white font-medium text-base tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-indigo-900/30">
+                    class="group w-full py-4 rounded-2xl transition-all font-medium text-base tracking-wide flex items-center justify-center gap-2 shadow-lg"
+                    :class="dailyChargeComplete
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 shadow-amber-900/25 text-zinc-950'
+                        : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-900/30'">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -577,8 +714,8 @@
                         x-text="'(' + focusablePool.length + ')'"></span>
                 </button>
                 <p class="text-center text-[11px] text-zinc-600 mt-2 tracking-wide">
-                    pools
-                    <span class="text-zinc-500" x-text="tasks.length"></span> tasks +
+                    focus pool
+                    <span class="text-zinc-500" x-text="focusableTaskCount"></span> tasks +
                     <span class="text-zinc-500" x-text="incompleteRoutinesCount"></span> routines ·
                     or press
                     <kbd
@@ -589,27 +726,55 @@
                 </p>
             </div>
 
-            <!-- Mobile/normal width battery summary -->
+            <!-- Mobile/normal width charge summary -->
             <div class="2xl:hidden mb-8 rounded-2xl bg-zinc-900/50 border border-zinc-800/60 px-4 py-3 transition-transform"
                 :class="batteryBump ? 'battery-bump-lite' : ''">
-                <div class="flex items-center justify-between gap-4 mb-2">
+                <div class="flex items-center justify-between gap-4 mb-3">
                     <div>
-                        <p class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Daily Battery</p>
-                        <p class="text-xs text-zinc-600 mt-1" x-text="batteryStatus"></p>
-                    </div>
-                    <div class="font-mono text-sm font-semibold"
-                        :class="batteryIsFull ? 'text-indigo-300' : 'text-zinc-300'" x-text="batteryPercent + '%'">
+                        <p class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Daily Charge</p>
+                        <p class="text-xs text-zinc-600 mt-1">Routines and random tasks are tracked separately.</p>
                     </div>
                 </div>
-                <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
-                    <div class="h-full battery-fill rounded-full"
-                        :class="batteryIsFull ? 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-indigo-500/80'"
-                        :style="'width:' + batteryFillPercent + '%'"></div>
-                </div>
-                <div class="mt-2 flex items-center justify-between gap-3 text-[10px] text-zinc-600">
-                    <span x-text="batteryLabel"></span>
-                    <span x-show="batteryOverfillPercent > 0" class="text-fuchsia-300 font-mono">+<span
-                            x-text="batteryOverfillPercent"></span>% overfill</span>
+
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-1.5 text-[11px]">
+                            <span class="text-zinc-500">Routine Battery</span>
+                            <span class="font-mono"
+                                :class="dailyChargeComplete ? 'text-yellow-200' : (routineBatteryIsFull ? 'text-indigo-300' : 'text-zinc-400')"
+                                x-text="routineBatteryPercent + '% · ' + routineBatteryLabel"></span>
+                        </div>
+                        <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                            <div class="h-full battery-fill rounded-full"
+                                :class="dailyChargeComplete ? 'bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-200' : (routineBatteryIsFull ? 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400' : 'bg-indigo-500/80')"
+                                :style="'width:' + routineBatteryFillPercent + '%'"></div>
+                        </div>
+                        <p class="mt-1 text-[10px]"
+                            :class="dailyChargeComplete ? 'text-yellow-200/80' : (routineBatteryIsFull ? 'text-indigo-300' : 'text-zinc-600')"
+                            x-text="routineBatteryStatus"></p>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-1.5 text-[11px]">
+                            <span class="text-zinc-500">Task Momentum</span>
+                            <span class="font-mono"
+                                :class="dailyChargeComplete ? 'text-yellow-200' : (taskMomentumIsFull ? 'text-violet-300' : 'text-zinc-400')"
+                                x-text="taskMomentumPercent + '% · ' + taskMomentumLabel"></span>
+                        </div>
+                        <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                            <div class="h-full battery-fill rounded-full"
+                                :class="dailyChargeComplete ? 'bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-200' : (taskMomentumIsFull ? 'bg-gradient-to-r from-fuchsia-500 via-violet-500 to-indigo-400' : 'bg-violet-500/80')"
+                                :style="'width:' + taskMomentumFillPercent + '%'"></div>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between gap-3 text-[10px]">
+                            <span
+                                :class="dailyChargeComplete ? 'text-yellow-200/80' : (taskMomentumIsFull ? 'text-violet-300' : 'text-zinc-600')"
+                                x-text="taskMomentumStatus"></span>
+                            <span x-show="taskMomentumOverfillPercent > 0" class="font-mono"
+                                :class="dailyChargeComplete ? 'text-yellow-200' : 'text-fuchsia-300'">+<span
+                                    x-text="taskMomentumOverfillPercent"></span>% over target</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -646,7 +811,8 @@
                             <span class="text-[10px] text-zinc-600">×/day</span>
                         </div>
                         <button type="submit"
-                            class="flex-shrink-0 w-6 h-6 rounded-md bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 flex items-center justify-center transition-colors"
+                            class="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                            :class="dailyChargeComplete ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-200' : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300'"
                             aria-label="Add routine">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor" stroke-width="2.5">
@@ -670,12 +836,12 @@
                                     class="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-900 transition-colors">
                                     <!-- Progress circle / count -->
                                     <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-mono font-semibold relative"
-                                        :class="routine.count >= routine.target ? 'bg-indigo-500/20 text-indigo-300' : 'bg-zinc-800 text-zinc-300'">
+                                        :class="routine.count >= routine.target ? (dailyChargeComplete ? 'bg-amber-500/20 text-amber-200' : 'bg-indigo-500/20 text-indigo-300') : 'bg-zinc-800 text-zinc-300'">
                                         <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
                                             <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(63,63,70,0.6)"
                                                 stroke-width="2" />
                                             <circle cx="18" cy="18" r="16" fill="none"
-                                                :stroke="routine.count >= routine.target ? '#818cf8' : '#6366f1'"
+                                                :stroke="routine.count >= routine.target ? (dailyChargeComplete ? '#fbbf24' : '#818cf8') : (dailyChargeComplete ? '#f59e0b' : '#6366f1')"
                                                 stroke-width="2.5" stroke-linecap="round" :stroke-dasharray="100.53"
                                                 :stroke-dashoffset="100.53 * (1 - Math.min(routine.count / routine.target, 1))"
                                                 class="timer-ring" />
@@ -684,31 +850,45 @@
                                             :class="{ 'bump-once': lastBumpedRoutineId === routine.id }"
                                             x-text="routine.count + '/' + routine.target"></span>
                                     </div>
-                                    <div class="flex-1 min-w-0 pr-6">
+                                    <div class="flex-1 min-w-0 pr-16">
                                         <p class="text-sm text-zinc-200 truncate routine-name" x-text="routine.name">
                                         </p>
                                         <div class="mt-1 h-1 rounded-full bg-zinc-800/80 overflow-hidden">
                                             <div class="h-full routine-bar rounded-full"
-                                                :class="routine.count >= routine.target ? 'bg-gradient-to-r from-indigo-500 to-violet-500' : 'bg-indigo-500/70'"
+                                                :class="routine.count >= routine.target ? (dailyChargeComplete ? 'bg-gradient-to-r from-amber-500 to-yellow-300' : 'bg-gradient-to-r from-indigo-500 to-violet-500') : (dailyChargeComplete ? 'bg-amber-500/70' : 'bg-indigo-500/70')"
                                                 :style="'width:' + Math.min((routine.count / routine.target) * 100, 100) + '%'">
                                             </div>
                                         </div>
                                     </div>
                                     <span x-show="routine.count >= routine.target"
-                                        class="flex-shrink-0 text-[10px] uppercase tracking-wider text-indigo-300 font-semibold">
+                                        class="flex-shrink-0 text-[10px] uppercase tracking-wider font-semibold"
+                                        :class="dailyChargeComplete ? 'text-amber-200' : 'text-indigo-300'">
                                         Done
                                     </span>
                                 </button>
 
-                                <!-- Delete routine button -->
-                                <button @click.stop="removeRoutine(routine)"
-                                    class="absolute top-1/2 -translate-y-1/2 right-3 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 bg-zinc-900 rounded-md transition-all p-1.5"
-                                    aria-label="Delete routine">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                                <!-- Manual routine controls -->
+                                <div
+                                    class="absolute top-1/2 -translate-y-1/2 right-3 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1">
+                                    <button @click.stop="undoRoutineRep(routine)" :disabled="routine.count <= 0"
+                                        class="text-zinc-600 hover:text-indigo-300 bg-zinc-900 rounded-md transition-all p-1.5 disabled:opacity-30 disabled:hover:text-zinc-600"
+                                        title="Undo one routine rep" aria-label="Undo one routine rep">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3 10h10a5 5 0 010 10H9m-6-10l4-4m-4 4l4 4" />
+                                        </svg>
+                                    </button>
+                                    <button @click.stop="removeRoutine(routine)"
+                                        class="text-zinc-600 hover:text-red-400 bg-zinc-900 rounded-md transition-all p-1.5"
+                                        aria-label="Delete routine">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </li>
                         </template>
                     </ul>
@@ -719,9 +899,10 @@
                     <!-- All-done celebration state -->
                     <div x-show="tasks.length === 0 && completed.length > 0 && incompleteRoutinesCount === 0"
                         class="text-center py-12">
-                        <div
-                            class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-500/10 mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-indigo-400" fill="none"
+                        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
+                            :class="dailyChargeComplete ? 'bg-amber-500/10' : 'bg-indigo-500/10'">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7"
+                                :class="dailyChargeComplete ? 'text-amber-300' : 'text-indigo-400'" fill="none"
                                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
@@ -741,10 +922,11 @@
                         </div>
                         <ul class="space-y-2">
                             <template x-for="task in tasks" :key="task.id">
-                                <li
-                                    class="fade-enter group flex items-center gap-4 px-5 py-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/60 transition-all relative">
+                                <li class="fade-enter group flex items-start gap-4 px-5 py-4 rounded-2xl bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/60 transition-all relative"
+                                    :class="task.blocked ? 'opacity-70 border-amber-900/40' : (isSnoozed(task) ? 'opacity-75 border-zinc-800/40' : '')">
                                     <button @click="completeTask(task)"
-                                        class="flex-shrink-0 w-6 h-6 rounded-full border-2 border-zinc-700 hover:border-indigo-500 hover:bg-indigo-500 transition-all flex items-center justify-center"
+                                        class="flex-shrink-0 mt-0.5 w-6 h-6 rounded-full border-2 border-zinc-700 transition-all flex items-center justify-center"
+                                        :class="dailyChargeComplete ? 'hover:border-amber-400 hover:bg-amber-500' : 'hover:border-indigo-500 hover:bg-indigo-500'"
                                         aria-label="Mark done">
                                         <svg xmlns="http://www.w3.org/2000/svg"
                                             class="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -752,7 +934,44 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                         </svg>
                                     </button>
-                                    <span class="flex-1 text-zinc-200 text-base break-words" x-text="task.text"></span>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-zinc-200 text-base break-words" x-text="task.text"></span>
+                                            <span
+                                                class="px-2 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/60 text-[10px] font-mono text-zinc-400"
+                                                x-text="estimateLabel(task.estimateMinutes)"></span>
+                                            <span x-show="isSnoozed(task)"
+                                                class="px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-[10px] font-mono text-violet-300"
+                                                x-text="snoozeLabel(task)"></span>
+                                            <span x-show="isSnoozed(task) && task.snoozeReason"
+                                                class="max-w-[220px] truncate px-2 py-0.5 rounded-full bg-zinc-800/70 border border-zinc-700/60 text-[10px] font-mono text-zinc-400"
+                                                x-text="'because · ' + task.snoozeReason"></span>
+                                            <span x-show="task.blocked"
+                                                class="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-mono text-amber-300"
+                                                x-text="'blocked' + (task.blockedReason ? ' · ' + task.blockedReason : '')"></span>
+                                        </div>
+                                        <div class="mt-2 flex items-center gap-2 flex-wrap text-[11px] text-zinc-600">
+                                            <button @click.stop="makeTaskSmaller(task)" class="transition-colors"
+                                                :class="dailyChargeComplete ? 'hover:text-amber-200' : 'hover:text-indigo-300'">Make
+                                                smaller</button>
+                                            <span class="text-zinc-800">·</span>
+                                            <button x-show="!isSnoozed(task)" @click.stop="snoozeTask(task, 30)"
+                                                class="hover:text-violet-300 transition-colors">Postpone 30m</button>
+                                            <button x-show="isSnoozed(task)" @click.stop="unsnoozeTask(task)"
+                                                class="hover:text-violet-300 transition-colors">Unsnooze</button>
+                                            <span class="text-zinc-800">·</span>
+                                            <button @click.stop="toggleBlocked(task)"
+                                                class="hover:text-amber-300 transition-colors"
+                                                x-text="task.blocked ? 'Unblock' : 'Block'"></button>
+                                            <span class="text-zinc-800">·</span>
+                                            <template x-for="option in estimateOptions" :key="option.minutes">
+                                                <button @click.stop="setTaskEstimate(task, option.minutes)"
+                                                    class="font-mono transition-colors"
+                                                    :class="task.estimateMinutes === option.minutes ? (dailyChargeComplete ? 'text-amber-200' : 'text-indigo-300') : 'hover:text-zinc-300'"
+                                                    x-text="option.label"></button>
+                                            </template>
+                                        </div>
+                                    </div>
                                     <button @click="removeTask(task)"
                                         class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-all p-1"
                                         aria-label="Delete">
@@ -808,15 +1027,24 @@
                         <template x-for="task in completed" :key="task.id">
                             <li
                                 class="fade-enter flex items-center gap-4 px-5 py-3 rounded-xl bg-zinc-900/20 border border-zinc-900/40">
-                                <div
-                                    class="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800/60 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-indigo-500/70"
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
+                                    :class="dailyChargeComplete ? 'bg-amber-500/10' : 'bg-zinc-800/60'">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3"
+                                        :class="dailyChargeComplete ? 'text-amber-300/80' : 'text-indigo-500/70'"
                                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </div>
                                 <span class="flex-1 text-zinc-500 text-sm strike-text break-words"
                                     x-text="task.text"></span>
+                                <button @click="removeCompletedTask(task)"
+                                    class="flex-shrink-0 text-zinc-700 hover:text-red-400 transition-colors p-1"
+                                    title="Remove from completed today" aria-label="Remove completed task">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </li>
                         </template>
                     </ul>
@@ -826,10 +1054,17 @@
             <!-- Mobile/normal width distraction dock -->
             <section
                 class="2xl:hidden mt-10 rounded-3xl bg-zinc-950/70 border border-zinc-800/70 p-4 shadow-xl shadow-black/20">
-                <div class="mb-4">
-                    <h3 class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Distraction Dock</h3>
-                    <p class="text-xs text-zinc-600 mt-2">Park random thoughts without turning them into side quests.
-                    </p>
+                <div class="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Distraction Dock</h3>
+                        <p class="text-xs text-zinc-600 mt-2">Park random thoughts without turning them into side
+                            quests.
+                        </p>
+                    </div>
+                    <button x-show="distractions.length > 0" @click="clearDistractions()"
+                        class="text-[11px] text-zinc-600 hover:text-red-300 transition-colors whitespace-nowrap">
+                        Clear
+                    </button>
                 </div>
                 <form @submit.prevent="addDistraction()" class="mb-4">
                     <input type="text" x-model="distractionInput" @keydown.stop placeholder="not now thought..."
@@ -845,7 +1080,7 @@
                             class="fade-enter rounded-xl bg-zinc-900/60 border border-zinc-800/60 px-3 py-2 flex items-start gap-2">
                             <p class="flex-1 text-sm text-zinc-400 leading-snug break-words" x-text="item.text"></p>
                             <button @click="promoteDistraction(item)"
-                                class="w-7 h-7 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-sm leading-none flex items-center justify-center"
+                                class="distraction-promote-btn w-7 h-7 rounded-md bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/30 text-sm leading-none flex items-center justify-center"
                                 title="Turn into task" aria-label="Turn distraction into task">+</button>
                             <button @click="removeDistraction(item)"
                                 class="w-7 h-7 rounded-md bg-zinc-800/60 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 text-sm leading-none flex items-center justify-center"
@@ -860,21 +1095,28 @@
         <div x-cloak x-show="focusMode" x-transition.opacity.duration.300ms
             class="min-h-[70vh] flex flex-col items-center justify-center text-center px-2">
 
-            <p class="text-xs uppercase tracking-[0.3em] text-indigo-400 mb-6">Do this. Just this.</p>
+            <p class="text-xs uppercase tracking-[0.3em] mb-6"
+                :class="dailyChargeComplete ? 'text-amber-300' : 'text-indigo-400'">Do this. Just this.</p>
 
             <!-- Type badge -->
             <div x-show="focusedItem" class="mb-4 flex items-center justify-center">
                 <span
                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] uppercase tracking-wider font-semibold"
-                    :class="focusedItem?.type === 'routine' ? 'text-violet-300 border-violet-800/50' : 'text-zinc-500'">
+                    :class="focusedItem?.type === 'routine' ? (dailyChargeComplete ? 'text-amber-200 border-amber-700/40' : 'text-violet-300 border-violet-800/50') : 'text-zinc-500'">
                     <span class="w-1.5 h-1.5 rounded-full"
-                        :class="focusedItem?.type === 'routine' ? 'bg-violet-400' : 'bg-zinc-600'"></span>
+                        :class="focusedItem?.type === 'routine' ? (dailyChargeComplete ? 'bg-amber-300' : 'bg-violet-400') : 'bg-zinc-600'"></span>
                     <span x-text="focusedItem?.type === 'routine' ? 'Routine · click increments count' : 'Task'"></span>
                 </span>
             </div>
 
             <h2 class="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-zinc-100 leading-tight max-w-4xl break-words"
                 x-text="focusedItem?.text"></h2>
+
+            <div x-show="focusedItem?.type === 'task'"
+                class="mt-4 flex items-center justify-center gap-2 flex-wrap text-[11px]">
+                <span class="px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono"
+                    x-text="estimateLabel(focusedItem?.ref?.estimateMinutes)"></span>
+            </div>
 
             <p x-show="combo >= 2" class="mt-6 font-mono text-sm tracking-wider" :class="comboTierClass">
                 <span x-text="'Combo x' + combo"></span>
@@ -887,8 +1129,8 @@
                 <form @submit.prevent="addDistraction()" class="flex items-center gap-2">
                     <input type="text" x-model="distractionInput" @keydown.stop placeholder="park a distraction..."
                         class="flex-1 min-w-0 bg-transparent text-xs text-zinc-300 placeholder-zinc-600" />
-                    <button type="submit"
-                        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-300 text-xs hover:bg-indigo-500/25">
+                    <button type="submit" class="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs"
+                        :class="dailyChargeComplete ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/25' : 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25'">
                         Park
                     </button>
                 </form>
@@ -901,8 +1143,8 @@
                     <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 200 200">
                         <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(63,63,70,0.5)" stroke-width="3" />
                         <circle cx="100" cy="100" r="92" fill="none"
-                            :stroke="timerFailed ? '#f87171' : (timerRunning ? '#818cf8' : '#52525b')" stroke-width="4"
-                            stroke-linecap="round" :stroke-dasharray="578.05"
+                            :stroke="timerFailed ? '#f87171' : (timerRunning ? (dailyChargeComplete ? '#fbbf24' : '#818cf8') : '#52525b')"
+                            stroke-width="4" stroke-linecap="round" :stroke-dasharray="578.05"
                             :stroke-dashoffset="578.05 * (1 - timerFraction)" class="timer-ring"
                             :style="timerRunning ? '' : 'transition: stroke-dashoffset 200ms ease'" />
                     </svg>
@@ -911,52 +1153,48 @@
                         <div class="timer-text text-6xl font-semibold tracking-tight"
                             :class="timerFailed ? 'timer-failed' : 'text-zinc-100'" x-text="timerDisplay"></div>
                         <div class="text-[10px] uppercase tracking-[0.25em] mt-2"
-                            :class="timerFailed ? 'text-red-400' : (timerRunning ? 'text-indigo-400' : 'text-zinc-600')">
-                            <span x-show="timerFailed">Speedrun failed</span>
-                            <span x-show="!timerFailed && timerRunning">Running</span>
-                            <span x-show="!timerFailed && !timerRunning && timerSeconds > 0">Ready</span>
+                            :class="timerFailed ? 'text-red-400' : (timerRunning ? (dailyChargeComplete ? 'text-amber-300' : 'text-indigo-400') : 'text-zinc-600')">
+                            <span x-show="timerFailed">Time box ended</span>
+                            <span x-show="!timerFailed && timerRunning" x-text="timerStatusLabel"></span>
+                            <span x-show="!timerFailed && !timerRunning && timerSeconds > 0"
+                                x-text="timerReadyLabel"></span>
                             <span x-show="!timerFailed && !timerRunning && timerSeconds === 0">Idle</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Timer controls -->
-                <div class="mt-6 flex items-center gap-2">
-                    <button @click="adjustTimer(-5)" :disabled="timerRunning"
-                        class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                        −5m
-                    </button>
+                <div x-show="!timerFailed" class="mt-6 flex items-center gap-2">
                     <button @click="toggleTimer()"
-                        class="px-5 py-1.5 rounded-lg text-xs font-medium tracking-wide transition-colors"
-                        :class="timerRunning ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700' : 'bg-indigo-600 text-white hover:bg-indigo-500'">
+                        class="px-6 py-2 rounded-lg text-xs font-medium tracking-wide transition-colors"
+                        :class="timerRunning ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700' : (dailyChargeComplete ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400' : 'bg-indigo-600 text-white hover:bg-indigo-500')">
                         <span x-show="!timerRunning && timerSeconds > 0"
                             x-text="timerSeconds === timerDuration ? 'Start Timer' : 'Resume'"></span>
                         <span x-show="timerRunning">Pause</span>
                         <span x-show="!timerRunning && timerSeconds === 0 && !timerFailed">Start</span>
                     </button>
-                    <button @click="adjustTimer(5)" :disabled="timerRunning"
-                        class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                        +5m
-                    </button>
-                    <button @click="resetTimer()"
-                        class="ml-1 px-3 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 text-xs font-mono transition-colors"
-                        title="Reset">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.85-3.36L20 7M20 15a9 9 0 01-14.85 3.36L4 17" />
-                        </svg>
-                    </button>
                 </div>
                 <p class="text-[10px] text-zinc-600 mt-2 font-mono">
-                    Default <span x-text="defaultTimerMinutes + 'm'"></span> · adjust before start
+                    Timer <span x-text="timerSourceLabel"></span>
                 </p>
             </div>
 
             <div class="mt-10 flex flex-col sm:flex-row gap-3">
                 <button @click="completeFocused()"
-                    class="px-8 py-3 rounded-full bg-indigo-600 hover:bg-indigo-500 transition-colors text-white font-medium text-sm tracking-wide">
+                    class="px-8 py-3 rounded-full transition-colors font-medium text-sm tracking-wide"
+                    :class="dailyChargeComplete ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950' : 'bg-indigo-600 hover:bg-indigo-500 text-white'">
                     <span x-text="focusedItem?.type === 'routine' ? 'Complete One Rep' : 'Mark as Done'"></span>
+                </button>
+
+                <button x-show="focusedItem?.type === 'task'" @click="makeFocusedSmaller()"
+                    class="px-8 py-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-200 font-medium text-sm tracking-wide">
+                    Make Smaller
+                </button>
+
+                <button x-show="focusedItem?.type === 'task'" @click="snoozeFocused(30)"
+                    class="px-8 py-3 rounded-full border transition-colors font-medium text-sm tracking-wide"
+                    :class="dailyChargeComplete ? 'bg-amber-500/10 border-amber-400/25 hover:bg-amber-500/20 text-amber-100' : 'bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 text-violet-200'">
+                    Not Now
                 </button>
 
                 <template x-if="focusablePool.length > 1">
@@ -982,7 +1220,7 @@
     <!-- UNDO TOAST -->
     <div x-cloak x-data="toastState()" x-show="visible"
         :class="[exiting ? 'toast-exit' : 'toast-enter', pending?.kind === 'routine' ? 'toast-routine' : 'toast-task']"
-        class="reward-toast fixed bottom-6 left-1/2 -translate-x-1/2 z-50 min-w-[280px] max-w-[92vw] px-4 py-3 rounded-2xl bg-zinc-900/95 backdrop-blur border border-zinc-800 shadow-2xl shadow-black/50 flex items-center gap-3">
+        class="reward-toast fixed top-6 left-1/2 -translate-x-1/2 z-50 min-w-[280px] max-w-[92vw] px-4 py-3 rounded-2xl bg-zinc-900/95 backdrop-blur border border-zinc-800 shadow-2xl shadow-black/50 flex items-center gap-3">
         <div class="toast-icon flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500/15 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor" stroke-width="3">
@@ -1053,12 +1291,21 @@
                 routineInput: '',
                 routineTarget: 3,
                 distractionInput: '',
+                taskEstimateMinutes: 15,
+                dailyTaskTarget: 3,
+                estimateOptions: [
+                    { label: '2 min', minutes: 2 },
+                    { label: '5 min', minutes: 5 },
+                    { label: '15 min', minutes: 15 },
+                    { label: 'Pomodoro', minutes: 25 }
+                ],
 
                 focusMode: false,
                 focusedItem: null,
 
-                combo: 1,
+                combo: 0,
                 lastCompletionAt: 0,
+                nowTick: Date.now(),
 
                 // Transient UI state for animations & background tasks (not persisted)
                 lastBumpedRoutineId: null,
@@ -1076,10 +1323,54 @@
                 timerRunning: false,
                 timerFailed: false,
                 timerInterval: null,
+                timerMode: 'standard',
+                timerPhase: 'work',
+                pomodoroWorkMinutes: 25,
+                pomodoroRestMinutes: 5,
 
                 todayStr() {
                     const d = new Date();
                     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                },
+
+                normalizeTask(task) {
+                    const t = task && typeof task === 'object' ? task : {};
+                    const estimate = parseInt(t.estimateMinutes, 10);
+                    return {
+                        id: t.id || Date.now() + Math.random(),
+                        text: String(t.text || '').trim(),
+                        createdAt: t.createdAt || Date.now(),
+                        estimateMinutes: this.validEstimateMinutes(estimate) ? estimate : this.defaultTimerMinutes,
+                        blocked: !!t.blocked,
+                        blockedReason: t.blockedReason || '',
+                        snoozedUntil: parseInt(t.snoozedUntil, 10) || null,
+                        snoozeReason: t.snoozeReason || '',
+                        parentId: t.parentId || null
+                    };
+                },
+
+                validEstimateMinutes(minutes) {
+                    return this.estimateOptions.some(option => option.minutes === minutes);
+                },
+
+                estimateLabel(minutes) {
+                    const m = parseInt(minutes, 10) || this.defaultTimerMinutes;
+                    const match = this.estimateOptions.find(option => option.minutes === m);
+                    return match ? match.label : `${m} min`;
+                },
+
+                createTask(text, overrides = {}) {
+                    return this.normalizeTask({
+                        id: overrides.id || Date.now() + Math.random(),
+                        text,
+                        createdAt: overrides.createdAt || Date.now(),
+                        estimateMinutes: overrides.estimateMinutes || this.taskEstimateMinutes,
+                        blocked: overrides.blocked || false,
+                        blockedReason: overrides.blockedReason || '',
+                        snoozedUntil: overrides.snoozedUntil || null,
+                        snoozeReason: overrides.snoozeReason || '',
+                        parentId: overrides.parentId || null
+                    });
                 },
 
                 boot() {
@@ -1097,7 +1388,12 @@
                         if (savedDistractions) this.distractions = JSON.parse(savedDistractions);
 
                         const savedCombo = localStorage.getItem('focus.combo');
-                        if (savedCombo) this.combo = Math.max(1, parseInt(savedCombo, 10) || 1);
+                        const savedComboModelVersion = localStorage.getItem('focus.comboModelVersion');
+                        if (savedCombo) {
+                            const parsedCombo = Math.max(0, parseInt(savedCombo, 10) || 0);
+                            // Older builds used 1 as the idle baseline, which made one completion display as x2.
+                            this.combo = savedComboModelVersion === '2' ? parsedCombo : Math.max(0, parsedCombo - 1);
+                        }
 
                         const savedLast = localStorage.getItem('focus.lastCompletionAt');
                         if (savedLast) this.lastCompletionAt = parseInt(savedLast, 10) || 0;
@@ -1112,12 +1408,32 @@
                             }
                         }
 
+                        const savedDailyTaskTarget = localStorage.getItem('focus.dailyTaskTarget');
+                        if (savedDailyTaskTarget) {
+                            const target = parseInt(savedDailyTaskTarget, 10);
+                            if (target > 0) this.dailyTaskTarget = target;
+                        }
+
+                        this.tasks = Array.isArray(this.tasks) ? this.tasks.map(t => this.normalizeTask(t)) : [];
+                        this.completed = Array.isArray(this.completed) ? this.completed : [];
+                        this.routines = Array.isArray(this.routines) ? this.routines.map(r => ({
+                            ...r,
+                            name: String(r.name || '').trim(),
+                            target: Math.max(1, parseInt(r.target, 10) || 1),
+                            count: Math.max(0, parseInt(r.count, 10) || 0),
+                            lastCountedAt: parseInt(r.lastCountedAt, 10) || 0,
+                            completionLog: Array.isArray(r.completionLog)
+                                ? r.completionLog.map(t => parseInt(t, 10)).filter(Boolean)
+                                : []
+                        })).filter(r => r.name) : [];
+                        this.distractions = Array.isArray(this.distractions) ? this.distractions : [];
+
                         const lastDate = localStorage.getItem('focus.lastActiveDate');
                         const today = this.todayStr();
 
                         if (lastDate !== today) {
                             this.completed = [];
-                            this.routines = this.routines.map(r => ({ ...r, count: 0 }));
+                            this.routines = this.routines.map(r => ({ ...r, count: 0, lastCountedAt: 0, completionLog: [] }));
                             localStorage.setItem('focus.lastActiveDate', today);
                         }
 
@@ -1130,6 +1446,7 @@
                             clearInterval(this.comboDecayInterval);
                         }
                         this.comboDecayInterval = setInterval(() => {
+                            this.nowTick = Date.now();
                             const oldCombo = this.combo;
                             this.checkComboDecay();
                             if (this.combo !== oldCombo) {
@@ -1162,21 +1479,21 @@
                     localStorage.setItem('focus.distractions', JSON.stringify(this.distractions));
                     localStorage.setItem('focus.lastActiveDate', this.todayStr());
                     localStorage.setItem('focus.combo', String(this.combo));
+                    localStorage.setItem('focus.comboModelVersion', '2');
                     localStorage.setItem('focus.lastCompletionAt', String(this.lastCompletionAt));
                     localStorage.setItem('focus.defaultTimerMinutes', String(this.defaultTimerMinutes));
+                    localStorage.setItem('focus.dailyTaskTarget', String(this.dailyTaskTarget));
                 },
 
                 checkComboDecay() {
                     const now = Date.now();
                     if (this.lastCompletionAt > 0 && (now - this.lastCompletionAt) > COMBO_DECAY_MS) {
-                        this.combo = 1;
+                        this.combo = 0;
                     }
                 },
 
                 get comboTierClass() {
-                    if (this.combo >= 6) return 'combo-t5';
-                    if (this.combo >= 4) return 'combo-t4';
-                    if (this.combo >= 3) return 'combo-t3';
+                    if (this.dailyChargeComplete) return 'combo-gold';
                     if (this.combo >= 2) return 'combo-t2';
                     return 'combo-t1';
                 },
@@ -1187,8 +1504,20 @@
                 get incompleteRoutinesCount() {
                     return this.routines.reduce((sum, r) => sum + Math.max(0, r.target - r.count), 0);
                 },
+                get focusableTasks() {
+                    const now = this.nowTick;
+                    return this.tasks.filter(t => {
+                        if (!t || !t.text) return false;
+                        if (t.blocked) return false;
+                        if (t.snoozedUntil && t.snoozedUntil > now) return false;
+                        return true;
+                    });
+                },
+                get focusableTaskCount() {
+                    return this.focusableTasks.length;
+                },
                 get focusablePool() {
-                    const items = this.tasks.map(t => ({ type: 'task', id: t.id, text: t.text, ref: t }));
+                    const items = this.focusableTasks.map(t => ({ type: 'task', id: t.id, text: t.text, ref: t }));
                     this.incompleteRoutines.forEach(r => {
                         items.push({ type: 'routine', id: r.id, text: r.name, ref: r });
                     });
@@ -1208,68 +1537,192 @@
                 get taskDoneTodayCount() {
                     return this.completed.length;
                 },
-                get batteryTaskUnits() {
-                    // One completed task counts as one charge unit. The routine target total still defines 100%,
-                    // so tasks can help on rough days and can push the battery into overfill.
-                    return this.taskDoneTodayCount;
+                get dailyChargeDoneCount() {
+                    return this.taskDoneTodayCount + this.routineDoneTotal;
                 },
-                get batteryTotalUnits() {
-                    return this.routineDoneTotal + this.batteryTaskUnits;
-                },
-                get batteryPercent() {
-                    if (this.routineTargetTotal > 0) {
-                        return Math.round((this.batteryTotalUnits / this.routineTargetTotal) * 100);
-                    }
 
-                    // No routines means there is no meaningful baseline yet. Tasks still charge the display,
-                    // because a blank battery after doing work is the sort of UI cruelty humans invented meetings for.
-                    return this.taskDoneTodayCount > 0 ? Math.min(300, this.taskDoneTodayCount * 100) : 0;
+                get routineBatteryPercent() {
+                    if (this.routineTargetTotal <= 0) return 0;
+                    return Math.round((this.routineDoneTotal / this.routineTargetTotal) * 100);
                 },
-                get batteryFillPercent() {
-                    return Math.max(0, Math.min(100, this.batteryPercent));
+                get routineBatteryFillPercent() {
+                    return Math.max(0, Math.min(100, this.routineBatteryPercent));
                 },
-                get batteryOverfillPercent() {
-                    return Math.max(0, this.batteryPercent - 100);
+                get routineBatteryIsFull() {
+                    return this.routineBatteryPercent >= 100;
                 },
-                get batteryIsFull() {
-                    return this.batteryPercent >= 100;
+                get routineBatteryLabel() {
+                    if (this.routineTargetTotal === 0) return 'No baseline';
+                    return `${this.routineDoneTotal}/${this.routineTargetTotal} reps`;
                 },
-                get routineBaselineIsComplete() {
-                    return this.routineTargetTotal > 0 && this.routineDoneTotal >= this.routineTargetTotal;
+                get routineBatteryStatus() {
+                    if (this.routineTargetTotal === 0) return 'Add routines to define baseline';
+                    if (this.routineBatteryIsFull) return 'Minimum day secured';
+                    const remaining = Math.max(0, this.routineTargetTotal - this.routineDoneTotal);
+                    return `${remaining} rep${remaining === 1 ? '' : 's'} left`;
                 },
-                get routineBaselineLabel() {
-                    if (this.routineTargetTotal === 0) return 'No routine baseline';
-                    return `${this.routineDoneTotal}/${this.routineTargetTotal} routine`;
-                },
-                get batteryLabel() {
-                    if (this.routineTargetTotal === 0) {
-                        return this.taskDoneTodayCount > 0 ? `${this.taskDoneTodayCount} task${this.taskDoneTodayCount === 1 ? '' : 's'}` : 'No baseline';
-                    }
 
-                    return `${this.batteryTotalUnits}/${this.routineTargetTotal} charge`;
+                get taskMomentumTarget() {
+                    return Math.max(1, parseInt(this.dailyTaskTarget, 10) || 3);
                 },
-                get batteryStatus() {
-                    if (this.routineTargetTotal === 0) {
-                        return 'Add routines to define 100%';
-                    }
-
-                    if (this.batteryOverfillPercent > 0) {
-                        return this.routineBaselineIsComplete ? 'Baseline done · overfilled' : 'Effort overfilled · routines remain';
-                    }
-
-                    if (this.batteryIsFull) {
-                        return this.routineBaselineIsComplete ? 'Minimum day secured' : 'Effort goal met · routines remain';
-                    }
-
-                    const remaining = this.routineTargetTotal - this.batteryTotalUnits;
-                    return `${remaining} charge left to 100%`;
+                get taskMomentumPercent() {
+                    return Math.round((this.taskDoneTodayCount / this.taskMomentumTarget) * 100);
                 },
+                get taskMomentumFillPercent() {
+                    return Math.max(0, Math.min(100, this.taskMomentumPercent));
+                },
+                get taskMomentumOverfillPercent() {
+                    return Math.max(0, this.taskMomentumPercent - 100);
+                },
+                get taskMomentumIsFull() {
+                    return this.taskMomentumPercent >= 100;
+                },
+                get taskMomentumLabel() {
+                    return `${this.taskDoneTodayCount}/${this.taskMomentumTarget} tasks`;
+                },
+                get taskMomentumStatus() {
+                    if (this.taskMomentumOverfillPercent > 0) return 'Momentum over target';
+                    if (this.taskMomentumIsFull) return 'Daily task target hit';
+                    const remaining = Math.max(0, this.taskMomentumTarget - this.taskDoneTodayCount);
+                    return `${remaining} task${remaining === 1 ? '' : 's'} to target`;
+                },
+                get dailyChargeComplete() {
+                    return this.routineBatteryIsFull && this.taskMomentumIsFull;
+                },
+
+                // Legacy aliases kept so older markup/extensions do not explode if cached.
+                get batteryPercent() { return this.routineBatteryPercent; },
+                get batteryFillPercent() { return this.routineBatteryFillPercent; },
+                get batteryOverfillPercent() { return 0; },
+                get batteryIsFull() { return this.routineBatteryIsFull; },
+                get batteryLabel() { return this.routineBatteryLabel; },
+                get batteryStatus() { return this.routineBatteryStatus; },
+                get routineBaselineIsComplete() { return this.routineBatteryIsFull; },
+                get routineBaselineLabel() { return this.routineBatteryLabel; },
 
                 addTask() {
                     const text = this.input.trim();
                     if (!text) return;
-                    this.tasks.unshift({ id: Date.now() + Math.random(), text });
+                    this.tasks.unshift(this.createTask(text));
                     this.input = '';
+                    this.save();
+                },
+
+                setTaskEstimate(task, minutes) {
+                    const m = parseInt(minutes, 10);
+                    if (!task || !this.validEstimateMinutes(m)) return;
+                    task.estimateMinutes = m;
+                    this.save();
+                },
+
+                isSnoozed(task) {
+                    return !!(task && task.snoozedUntil && task.snoozedUntil > this.nowTick);
+                },
+
+                snoozeLabel(task) {
+                    if (!this.isSnoozed(task)) return '';
+                    const ms = task.snoozedUntil - this.nowTick;
+                    const minutes = Math.max(1, Math.ceil(ms / 60000));
+                    if (minutes >= 60) {
+                        const hours = Math.ceil(minutes / 60);
+                        return `postponed ${hours}h`;
+                    }
+                    return `postponed ${minutes}m`;
+                },
+
+                snoozeTask(task, minutes = 30, reason = null) {
+                    if (!task) return false;
+                    let finalReason = reason;
+                    if (finalReason === null) {
+                        finalReason = prompt(`Why are you postponing this?
+"${task.text}"
+
+State a clear reason:`);
+                    }
+                    if (!finalReason || !finalReason.trim()) return false;
+                    task.snoozedUntil = Date.now() + Math.max(1, minutes) * 60 * 1000;
+                    task.snoozeReason = finalReason.trim();
+                    this.save();
+                    return true;
+                },
+
+                unsnoozeTask(task) {
+                    if (!task) return;
+                    task.snoozedUntil = null;
+                    task.snoozeReason = '';
+                    this.save();
+                },
+
+                toggleBlocked(task) {
+                    if (!task) return;
+                    if (task.blocked) {
+                        task.blocked = false;
+                        task.blockedReason = '';
+                    } else {
+                        const reason = prompt('What is this waiting on?');
+                        task.blocked = true;
+                        task.blockedReason = reason && reason.trim() ? reason.trim() : 'waiting';
+                    }
+                    this.save();
+                },
+
+                makeTaskSmaller(task) {
+                    if (!task) return false;
+                    const smaller = prompt(`Make this smaller:
+"${task.text}"
+
+Next tiny action:`);
+                    if (!smaller || !smaller.trim()) return false;
+                    const tinyAction = smaller.trim();
+                    task.snoozedUntil = Date.now() + 30 * 60 * 1000;
+                    task.snoozeReason = `split into: ${tinyAction}`;
+                    this.tasks.unshift(this.createTask(tinyAction, {
+                        estimateMinutes: Math.min(task.estimateMinutes || this.taskEstimateMinutes, 5),
+                        parentId: task.id
+                    }));
+                    this.save();
+                    return true;
+                },
+
+                completionCurrentlyAppliesToCombo(completedAt) {
+                    const completedTime = parseInt(completedAt, 10) || 0;
+                    if (!completedTime || !this.lastCompletionAt || this.combo <= 0) return false;
+                    return completedTime >= (this.lastCompletionAt - COMBO_DECAY_MS);
+                },
+
+                latestKnownCompletionAt() {
+                    const taskTimes = this.completed.map(c => parseInt(c.completedAt, 10) || 0);
+                    const routineTimes = this.routines.flatMap(r => Array.isArray(r.completionLog)
+                        ? r.completionLog.map(t => parseInt(t, 10) || 0)
+                        : []);
+                    return Math.max(0, ...taskTimes, ...routineTimes);
+                },
+
+                lowerComboIfActiveCompletion(completedAt) {
+                    if (this.completionCurrentlyAppliesToCombo(completedAt)) {
+                        this.combo = Math.max(0, this.combo - 1);
+                        this.lastCompletionAt = this.combo === 0 ? 0 : this.latestKnownCompletionAt();
+                    }
+                },
+
+                removeCompletedTask(task) {
+                    if (!task) return;
+                    const idx = this.completed.findIndex(c => c.id === task.id);
+                    if (idx === -1) return;
+                    const removed = this.completed.splice(idx, 1)[0];
+                    this.lowerComboIfActiveCompletion(removed.completedAt);
+                    this.save();
+                },
+
+                undoRoutineRep(routine) {
+                    if (!routine || routine.count <= 0) return;
+                    routine.completionLog = Array.isArray(routine.completionLog) ? routine.completionLog : [];
+                    const appliedAt = routine.completionLog.length
+                        ? routine.completionLog.pop()
+                        : (parseInt(routine.lastCountedAt, 10) || this.lastCompletionAt);
+                    routine.count = Math.max(0, routine.count - 1);
+                    routine.lastCountedAt = routine.completionLog.length ? routine.completionLog[routine.completionLog.length - 1] : 0;
+                    this.lowerComboIfActiveCompletion(appliedAt);
                     this.save();
                 },
 
@@ -1283,6 +1736,8 @@
                     this.completed.unshift({
                         id: task.id,
                         text: task.text,
+                        estimateMinutes: task.estimateMinutes,
+                        parentId: task.parentId || null,
                         completedAt: Date.now()
                     });
                     this.save();
@@ -1290,7 +1745,8 @@
 
                 completeTask(task) {
                     this.checkComboDecay();
-                    const beforeBatteryPercent = this.batteryPercent;
+                    const beforeBatteryPercent = this.taskMomentumPercent;
+                    const beforeDailyChargeComplete = this.dailyChargeComplete;
                     const snapshot = { kind: 'task', id: task.id, text: task.text, previousCombo: this.combo };
                     this.moveToCompleted(task);
 
@@ -1298,9 +1754,11 @@
                     this.lastCompletionAt = Date.now();
                     this.save();
 
-                    const afterBatteryPercent = this.batteryPercent;
-                    const rewardType = afterBatteryPercent > 100 ? 'overfill' : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : 'normal');
-                    this.celebrate(rewardType, '✓ +1 task');
+                    const afterBatteryPercent = this.taskMomentumPercent;
+                    const rewardType = !beforeDailyChargeComplete && this.dailyChargeComplete
+                        ? 'complete'
+                        : (afterBatteryPercent > 100 ? 'overfill' : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : 'normal'));
+                    this.celebrate(rewardType, rewardType === 'complete' ? '★ daily charge full' : '✓ +1 task');
 
                     window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
                 },
@@ -1310,7 +1768,9 @@
                         const r = this.routines.find(x => x.id === snapshot.id);
                         if (r) {
                             r.count = Math.max(0, snapshot.previousCount);
-                            this.combo = Math.max(1, snapshot.previousCombo);
+                            r.completionLog = Array.isArray(snapshot.previousCompletionLog) ? [...snapshot.previousCompletionLog] : [];
+                            r.lastCountedAt = r.completionLog.length ? r.completionLog[r.completionLog.length - 1] : 0;
+                            this.combo = Math.max(0, snapshot.previousCombo);
                             this.save();
                         }
                         return;
@@ -1318,8 +1778,12 @@
                     const idx = this.completed.findIndex(c => c.id === snapshot.id);
                     if (idx !== -1) {
                         const restored = this.completed.splice(idx, 1)[0];
-                        this.tasks.unshift({ id: restored.id, text: restored.text });
-                        this.combo = Math.max(1, snapshot.previousCombo);
+                        this.tasks.unshift(this.createTask(restored.text, {
+                            id: restored.id,
+                            estimateMinutes: restored.estimateMinutes || this.taskEstimateMinutes,
+                            parentId: restored.parentId || null
+                        }));
+                        this.combo = Math.max(0, snapshot.previousCombo);
                         this.save();
                     }
                 },
@@ -1332,7 +1796,9 @@
                         id: Date.now() + Math.random(),
                         name,
                         target,
-                        count: 0
+                        count: 0,
+                        lastCountedAt: 0,
+                        completionLog: []
                     });
                     this.routineInput = '';
                     this.save();
@@ -1355,7 +1821,8 @@
                     if (routine.count >= routine.target) return;
 
                     this.checkComboDecay();
-                    const beforeBatteryPercent = this.batteryPercent;
+                    const beforeBatteryPercent = this.routineBatteryPercent;
+                    const beforeDailyChargeComplete = this.dailyChargeComplete;
                     const nextCount = routine.count + 1;
                     const finishesRoutine = nextCount >= routine.target;
 
@@ -1364,10 +1831,15 @@
                         id: routine.id,
                         text: `${routine.name} · ${nextCount}/${routine.target}`,
                         previousCount: routine.count,
+                        previousCompletionLog: Array.isArray(routine.completionLog) ? [...routine.completionLog] : [],
                         previousCombo: this.combo
                     };
 
+                    const countedAt = Date.now();
                     routine.count = nextCount;
+                    routine.lastCountedAt = countedAt;
+                    routine.completionLog = Array.isArray(routine.completionLog) ? routine.completionLog : [];
+                    routine.completionLog.push(countedAt);
 
                     // Trigger bump animation on this routine's count (replays CSS scale anim reliably)
                     this.lastBumpedRoutineId = routine.id;
@@ -1383,9 +1855,11 @@
                     this.lastCompletionAt = Date.now();
                     this.save();
 
-                    const afterBatteryPercent = this.batteryPercent;
-                    const rewardType = afterBatteryPercent > 100 ? 'overfill' : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : (finishesRoutine ? 'strong' : 'normal'));
-                    this.celebrate(rewardType, finishesRoutine ? '✓ routine done' : '✓ +1 rep');
+                    const afterBatteryPercent = this.routineBatteryPercent;
+                    const rewardType = !beforeDailyChargeComplete && this.dailyChargeComplete
+                        ? 'complete'
+                        : (beforeBatteryPercent < 100 && afterBatteryPercent >= 100 ? 'strong' : (finishesRoutine ? 'strong' : 'normal'));
+                    this.celebrate(rewardType, rewardType === 'complete' ? '★ daily charge full' : (finishesRoutine ? '✓ routine done' : '✓ +1 rep'));
 
                     window.dispatchEvent(new CustomEvent('show-undo-toast', { detail: snapshot }));
                 },
@@ -1409,11 +1883,21 @@
                     this.save();
                 },
 
+                clearDistractions() {
+                    if (!this.distractions.length) return;
+                    if (!confirm('Clear all parked distractions?')) return;
+                    this.distractions = [];
+                    this.save();
+                },
+
+                adjustDailyTaskTarget(delta) {
+                    const next = Math.max(1, Math.min(99, this.taskMomentumTarget + delta));
+                    this.dailyTaskTarget = next;
+                    this.save();
+                },
+
                 promoteDistraction(item) {
-                    this.tasks.unshift({
-                        id: Date.now() + Math.random(),
-                        text: item.text
-                    });
+                    this.tasks.unshift(this.createTask(item.text));
                     this.removeDistraction(item);
                     this.save();
                 },
@@ -1428,6 +1912,65 @@
                     this.focusedItem = pool[idx];
                     this.focusMode = true;
                     this.resetTimer();
+                },
+
+                timerMinutesForItem(item = this.focusedItem) {
+                    if (item && item.type === 'task') {
+                        const m = parseInt(item.ref?.estimateMinutes, 10);
+                        return this.validEstimateMinutes(m) ? m : this.defaultTimerMinutes;
+                    }
+                    return this.defaultTimerMinutes;
+                },
+
+                get timerSourceLabel() {
+                    if (this.timerMode === 'pomodoro') {
+                        return this.timerPhase === 'rest' ? 'Pomodoro rest · 5m' : 'Pomodoro work · 25m';
+                    }
+                    if (this.focusedItem?.type === 'task') {
+                        return `set from task size · ${this.estimateLabel(this.timerMinutesForItem())}`;
+                    }
+                    return `default ${this.defaultTimerMinutes}m`;
+                },
+
+                get timerStatusLabel() {
+                    if (this.timerMode === 'pomodoro') {
+                        return this.timerPhase === 'rest' ? 'Rest running' : 'Pomodoro running';
+                    }
+                    return 'Running';
+                },
+
+                get timerReadyLabel() {
+                    if (this.timerMode === 'pomodoro') {
+                        return this.timerPhase === 'rest' ? 'Rest ready' : 'Pomodoro ready';
+                    }
+                    return 'Ready';
+                },
+
+                configureTimerForFocusedItem() {
+                    const minutes = this.timerMinutesForItem();
+                    this.timerMode = this.focusedItem?.type === 'task' && minutes === this.pomodoroWorkMinutes ? 'pomodoro' : 'standard';
+                    this.timerPhase = 'work';
+                    this.timerSeconds = minutes * 60;
+                    this.timerDuration = minutes * 60;
+                    this.timerFailed = false;
+                },
+
+                makeFocusedSmaller() {
+                    if (!this.focusedItem || this.focusedItem.type !== 'task') return;
+                    const task = this.tasks.find(t => t.id === this.focusedItem.id);
+                    if (!task) return;
+                    const split = this.makeTaskSmaller(task);
+                    if (split) this.$nextTick(() => this.pickFocus());
+                },
+
+                snoozeFocused(minutes = 30) {
+                    if (!this.focusedItem || this.focusedItem.type !== 'task') return;
+                    const task = this.tasks.find(t => t.id === this.focusedItem.id);
+                    if (!task) return;
+                    const snoozed = this.snoozeTask(task, minutes);
+                    if (!snoozed) return;
+                    if (this.focusablePool.length > 0) this.$nextTick(() => this.pickFocus());
+                    else this.exitFocus();
                 },
 
                 exitFocus() {
@@ -1461,6 +2004,8 @@
 
                 clearCompleted() {
                     this.completed = [];
+                    this.combo = 0;
+                    this.lastCompletionAt = 0;
                     this.save();
                 },
 
@@ -1475,37 +2020,42 @@
                     return Math.max(0, Math.min(1, this.timerSeconds / this.timerDuration));
                 },
 
-                adjustTimer(deltaMin) {
-                    if (this.timerRunning) return;
-                    const newSec = Math.max(60, this.timerSeconds + deltaMin * 60);
-                    this.timerSeconds = newSec;
-                    this.timerDuration = newSec;
-                    this.timerFailed = false;
-                },
-
                 resetTimer() {
                     this.stopTimer();
-                    this.timerSeconds = this.defaultTimerMinutes * 60;
-                    this.timerDuration = this.defaultTimerMinutes * 60;
+                    this.configureTimerForFocusedItem();
+                },
+
+                advancePomodoroPhase() {
+                    if (this.timerMode !== 'pomodoro') return false;
+                    if (this.timerPhase === 'work') {
+                        this.timerPhase = 'rest';
+                        this.timerSeconds = this.pomodoroRestMinutes * 60;
+                        this.timerDuration = this.pomodoroRestMinutes * 60;
+                    } else {
+                        this.timerPhase = 'work';
+                        this.timerSeconds = this.pomodoroWorkMinutes * 60;
+                        this.timerDuration = this.pomodoroWorkMinutes * 60;
+                    }
                     this.timerFailed = false;
+                    return true;
                 },
 
                 startTimer() {
                     if (this.timerInterval) return;
                     if (this.timerSeconds <= 0) {
-                        this.timerSeconds = this.defaultTimerMinutes * 60;
-                        this.timerDuration = this.defaultTimerMinutes * 60;
-                        this.timerFailed = false;
+                        this.configureTimerForFocusedItem();
                     }
                     this.timerRunning = true;
                     this.timerInterval = setInterval(() => {
                         if (this.timerSeconds > 0) {
                             this.timerSeconds -= 1;
                             if (this.timerSeconds === 0) {
-                                this.timerFailed = true;
-                                this.stopTimer();
+                                if (!this.advancePomodoroPhase()) {
+                                    this.timerFailed = true;
+                                    this.stopTimer();
+                                }
                             }
-                        } else {
+                        } else if (!this.advancePomodoroPhase()) {
                             this.stopTimer();
                         }
                     }, 1000);
@@ -1522,6 +2072,80 @@
                 toggleTimer() {
                     if (this.timerRunning) this.stopTimer();
                     else this.startTimer();
+                },
+
+                exportData() {
+                    const data = {
+                        version: 2,
+                        exportedAt: new Date().toISOString(),
+                        tasks: this.tasks,
+                        completed: this.completed,
+                        routines: this.routines,
+                        distractions: this.distractions,
+                        combo: this.combo,
+                        comboModelVersion: 2,
+                        lastCompletionAt: this.lastCompletionAt,
+                        defaultTimerMinutes: this.defaultTimerMinutes,
+                        dailyTaskTarget: this.dailyTaskTarget
+                    };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `focus-backup-${this.todayStr()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                },
+
+                importData(event) {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const data = JSON.parse(reader.result);
+                            if (!data || typeof data !== 'object') throw new Error('Invalid backup file');
+
+                            this.tasks = Array.isArray(data.tasks) ? data.tasks.map(t => this.normalizeTask(t)).filter(t => t.text) : [];
+                            this.completed = Array.isArray(data.completed) ? data.completed : [];
+                            this.routines = Array.isArray(data.routines) ? data.routines.map(r => ({
+                                ...r,
+                                name: String(r.name || '').trim(),
+                                target: Math.max(1, parseInt(r.target, 10) || 1),
+                                count: Math.max(0, parseInt(r.count, 10) || 0),
+                                lastCountedAt: parseInt(r.lastCountedAt, 10) || 0,
+                                completionLog: Array.isArray(r.completionLog)
+                                    ? r.completionLog.map(t => parseInt(t, 10)).filter(Boolean)
+                                    : []
+                            })).filter(r => r.name) : [];
+                            this.distractions = Array.isArray(data.distractions) ? data.distractions : [];
+                            const importedCombo = Math.max(0, parseInt(data.combo, 10) || 0);
+                            this.combo = String(data.comboModelVersion || data.version) === '2' ? importedCombo : Math.max(0, importedCombo - 1);
+                            this.lastCompletionAt = parseInt(data.lastCompletionAt, 10) || 0;
+
+                            const importedDefault = parseInt(data.defaultTimerMinutes, 10);
+                            if (importedDefault > 0) {
+                                this.defaultTimerMinutes = importedDefault;
+                            }
+
+                            const importedTaskTarget = parseInt(data.dailyTaskTarget, 10);
+                            if (importedTaskTarget > 0) {
+                                this.dailyTaskTarget = importedTaskTarget;
+                            }
+
+                            this.resetTimer();
+                            this.save();
+                            alert('Backup imported.');
+                        } catch (e) {
+                            alert('Could not import backup.');
+                        } finally {
+                            event.target.value = '';
+                        }
+                    };
+                    reader.readAsText(file);
                 },
 
                 handleInputKey(event) {
@@ -1602,7 +2226,7 @@
                     const pop = {
                         id: Date.now() + Math.random(),
                         type: rewardType,
-                        text: rewardType === 'overfill' ? `${text} · overcharge` : text
+                        text: rewardType === 'complete' ? text : (rewardType === 'overfill' ? `${text} · overcharge` : text)
                     };
                     this.rewardPops.push(pop);
 
@@ -1613,7 +2237,7 @@
                     this.rewardPulseTimer = setTimeout(() => {
                         this.celebrationPulse = null;
                         this.rewardPulseTimer = null;
-                    }, rewardType === 'normal' ? 520 : 720);
+                    }, rewardType === 'normal' ? 520 : (rewardType === 'complete' ? 900 : 720));
 
                     this.batteryBumpTimer = setTimeout(() => {
                         this.batteryBump = false;
